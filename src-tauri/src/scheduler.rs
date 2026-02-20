@@ -137,36 +137,14 @@ impl Scheduler {
                 }
             } else {
                 tracing::info!("Playing Default Adhan for {}", info.prayer);
-                let adhan_file = if info.prayer == nano_pray_core::prelude::Prayer::Fajr { "adhan_fajr.mp3" } else { "adhan.mp3" };
                 
-                let mut played = false;
+                let bytes = if info.prayer == nano_pray_core::prelude::Prayer::Fajr { 
+                    include_bytes!("../assets/adhan_fajr.mp3").as_slice() 
+                } else { 
+                    include_bytes!("../assets/adhan.mp3").as_slice() 
+                };
                 
-                // 1. Try Resource directory (installed apps)
-                if let Ok(resource_dir) = self.app.path().resolve("assets", tauri::path::BaseDirectory::Resource) {
-                    let bundled_path = resource_dir.join(adhan_file);
-                    if bundled_path.exists() {
-                        let _ = audio_state.0.play_file(bundled_path, reminder.volume);
-                        
-                    }
-                }
-                
-                // 2. Try portable fallback
-                if !played {
-                    if let Ok(exe_path) = std::env::current_exe() {
-                        if let Some(exe_dir) = exe_path.parent() {
-                            let portable_path = exe_dir.join("resources").join("assets").join(adhan_file);
-                            if portable_path.exists() {
-                                let _ = audio_state.0.play_file(portable_path, reminder.volume);
-                                
-                            } else {
-                                let alt_portable_path = exe_dir.join("assets").join(adhan_file);
-                                if alt_portable_path.exists() {
-                                    let _ = audio_state.0.play_file(alt_portable_path, reminder.volume);
-                                }
-                            }
-                        }
-                    }
-                }
+                let _ = audio_state.0.play_embedded(bytes, reminder.volume);
             }
         }
 

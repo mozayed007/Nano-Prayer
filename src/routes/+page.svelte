@@ -179,7 +179,10 @@
 </svelte:head>
 
 {#if loading}
-  <div class="flex items-center justify-center h-full min-h-[220px]" transition:fade>
+  <div
+    class="flex items-center justify-center h-full min-h-[220px]"
+    transition:fade
+  >
     <div class="glass-card p-8 rounded-2xl">
       <p class="text-center text-lg text-[var(--text-main)]">
         Loading prayer times...
@@ -187,7 +190,10 @@
     </div>
   </div>
 {:else if error}
-  <div class="flex items-center justify-center h-full min-h-[220px]" transition:fade>
+  <div
+    class="flex items-center justify-center h-full min-h-[220px]"
+    transition:fade
+  >
     <div class="glass-card p-8 rounded-2xl border-red-500 border">
       <p class="text-center text-red-300 mb-4">Error: {error}</p>
       <button
@@ -230,28 +236,32 @@
         >
           {hijriDate?.formatted}
         </p>
-        <p class="text-[var(--text-muted)] font-arabic text-base lg:text-xl mt-1">
+        <p
+          class="text-[var(--text-muted)] font-arabic text-base lg:text-xl mt-1"
+        >
           {hijriDate?.formatted_arabic}
         </p>
       </div>
     </header>
 
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6 xl:flex-1 min-h-0">
+    <div
+      class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 lg:flex-1 min-h-0"
+    >
       <!-- Left Column: Timer & Info -->
-      <div class="flex flex-col gap-4 md:gap-6 xl:col-span-7">
+      <div class="flex flex-col gap-4 md:gap-6 lg:col-span-6 xl:col-span-7">
         <!-- Countdown Card -->
         <div
-          class="countdown-card backdrop-blur-3xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 md:p-6 xl:p-8 rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden min-h-[180px] sm:min-h-[220px] md:min-h-[280px] xl:h-full xl:min-h-0 shadow-[0_8px_32px_var(--glass-shadow)] group"
+          class="countdown-card backdrop-blur-3xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 md:p-6 lg:p-8 rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden min-h-[220px] md:min-h-[280px] lg:h-full lg:min-h-0 shadow-[0_8px_32px_var(--glass-shadow)] group"
         >
           <div
-            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_70%)] blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-1000 mix-blend-screen pointer-events-none"
+            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] md:w-[120%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_70%)] opacity-50 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none clamp-size"
           ></div>
 
           <div
             class="relative z-10 text-center flex flex-col items-center w-full"
           >
             <div
-              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-5 sm:px-8 py-2 sm:py-2.5 rounded-full backdrop-blur-md mb-3 md:mb-4 xl:mb-8 shadow-inner"
+              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-5 sm:px-8 py-2 sm:py-2.5 rounded-full backdrop-blur-md mb-3 md:mb-4 lg:mb-8 shadow-inner"
             >
               <span
                 class="text-lg sm:text-xl md:text-2xl font-mono font-medium tracking-widest text-[var(--text-main)]/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
@@ -267,7 +277,7 @@
               >
                 <!-- Enhanced Progress Ring / Circular Hourglass -->
                 <svg
-                  class="ring-visual w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 xl:w-72 xl:h-72 drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] max-h-full"
+                  class="ring-visual w-[55vw] sm:w-[50vw] md:w-[45vw] lg:w-[40vw] max-w-[300px] aspect-square drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] max-h-[60vh]"
                   viewBox="0 0 288 288"
                 >
                   <defs>
@@ -331,7 +341,7 @@
                   class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
                 >
                   <span
-                    class="minutes-text text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-lg"
+                    class="minutes-text text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-lg"
                     >{formatMinutes(prayerTimes.minutes_to_next)}</span
                   >
                   <span
@@ -342,7 +352,7 @@
               </div>
 
               <div
-                class="mt-3 md:mt-4 xl:mt-10 flex items-center justify-center gap-3 bg-[var(--glass-bg)] px-5 md:px-6 py-2.5 md:py-3 rounded-2xl border border-[var(--glass-border)] backdrop-blur-md w-full max-w-xs shadow-inner flex-shrink-0"
+                class="mt-3 md:mt-4 lg:mt-8 xl:mt-10 flex items-center justify-center gap-3 bg-[var(--glass-bg)] px-5 md:px-6 py-2.5 md:py-3 rounded-2xl border border-[var(--glass-border)] backdrop-blur-md w-full max-w-xs shadow-inner flex-shrink-0"
               >
                 <div
                   class="w-2.5 h-2.5 rounded-full {prayerTimes.current_prayer
@@ -363,10 +373,10 @@
 
       <!-- Right Column: Prayer List -->
       <div
-        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 sm:p-5 md:p-6 xl:p-8 rounded-[2rem] flex flex-col xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] min-h-[240px] md:min-h-[300px] xl:h-full xl:min-h-0"
+        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 sm:p-5 md:p-6 lg:p-8 rounded-[2rem] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] min-h-[260px] md:min-h-[300px] lg:h-full lg:min-h-0"
       >
         <div
-          class="absolute right-0 top-0 w-64 h-64 bg-white/5 blur-3xl opacity-50 pointer-events-none"
+          class="absolute right-0 top-0 w-[120%] lg:w-[100%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none -translate-y-1/2"
         ></div>
 
         <h2
@@ -400,9 +410,11 @@
                 ></div>
               {/if}
 
-              <div class="flex items-center gap-3 sm:gap-4 md:gap-5 relative z-10 min-w-0">
+              <div
+                class="flex items-center gap-3 sm:gap-4 md:gap-5 relative z-10 min-w-0"
+              >
                 <div
-                  class="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl transition-colors duration-300
+                  class="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center rounded-xl transition-colors duration-300
                     {isCurrent
                     ? 'bg-[var(--text-main)] text-[var(--on-text-main)] shadow-lg shadow-[var(--text-main)]/20'
                     : 'bg-[var(--text-main)]/5 text-[var(--text-main)]/60 group-hover:bg-[var(--text-main)]/10 group-hover:text-[var(--text-main)] border border-[var(--glass-border)]'}"

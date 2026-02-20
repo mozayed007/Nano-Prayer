@@ -7,6 +7,7 @@ use rodio::{Decoder, OutputStream, Sink};
 
 pub enum AudioCommand {
     Play(PathBuf, f32),
+    PlayEmbedded(&'static [u8], f32),
     Pause,
     Resume,
     Stop,
@@ -65,6 +66,21 @@ impl AudioPlayer {
                         
                         sink.play();
                     }
+                    AudioCommand::PlayEmbedded(bytes, volume) => {
+                        if !sink.empty() {
+                            sink.stop();
+                        }
+                        
+                        sink.set_volume(volume);
+
+                        let cursor = std::io::Cursor::new(bytes);
+                        match Decoder::new(cursor) {
+                            Ok(source) => sink.append(source),
+                            Err(e) => eprintln!("Error decoding embedded audio: {}", e),
+                        }
+                        
+                        sink.play();
+                    }
                     AudioCommand::Pause => {
                         sink.pause();
                     }
@@ -84,6 +100,12 @@ impl AudioPlayer {
     pub fn play_file(&self, path: PathBuf, volume: f32) -> Result<(), String> {
         self.sender
             .send(AudioCommand::Play(path, volume))
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn play_embedded(&self, bytes: &'static [u8], volume: f32) -> Result<(), String> {
+        self.sender
+            .send(AudioCommand::PlayEmbedded(bytes, volume))
             .map_err(|e| e.to_string())
     }
 

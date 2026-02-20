@@ -98,7 +98,7 @@
       class="backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 md:p-5 rounded-2xl flex justify-between items-center relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-shrink-0"
     >
       <div
-        class="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-transparent blur-3xl pointer-events-none"
+        class="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-transparent pointer-events-none"
       ></div>
 
       <button
@@ -243,7 +243,7 @@
                 class="bg-[var(--text-main)]/10 text-[var(--text-muted)] text-[10px] md:text-xs font-bold uppercase tracking-widest backdrop-blur-xl sticky top-0 shadow-sm z-20"
               >
                 <th
-                  class="p-4 font-bold text-center w-[60px] border-b border-[var(--glass-border)] text-sm"
+                  class="p-4 font-bold text-center w-[10%] min-w-[3rem] border-b border-[var(--glass-border)] text-sm"
                   >Day</th
                 >
                 <th

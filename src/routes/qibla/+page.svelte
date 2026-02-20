@@ -90,14 +90,15 @@
       animate();
     } catch (e) {
       console.error(e);
-      error = "Failed to load compass data. Ensure your location is set in settings.";
+      error =
+        "Failed to load compass data. Ensure your location is set in settings.";
       loading = false;
     }
   }
 
   function handleOrientation(event: DeviceOrientationEvent) {
     // iOS uses webkitCompassHeading, Android uses alpha
-    if (event as any && (event as any).webkitCompassHeading !== undefined) {
+    if ((event as any) && (event as any).webkitCompassHeading !== undefined) {
       deviceHeading = (event as any).webkitCompassHeading;
     } else if (event.alpha !== null) {
       // Convert alpha to compass heading. Alpha is 0 when device is pointing North on Android,
@@ -140,10 +141,18 @@
       </p>
     </div>
   {:else if error}
-    <div class="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full">
-      <div class="glass-card p-8 rounded-3xl border border-red-500/30 w-full text-center bg-red-500/5">
-        <p class="text-red-200 font-medium mb-4 text-xl tracking-tight">Compass Error</p>
-        <p class="text-[var(--text-muted)] mb-8 leading-relaxed max-w-xs mx-auto">
+    <div
+      class="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full"
+    >
+      <div
+        class="glass-card p-8 rounded-3xl border border-red-500/30 w-full text-center bg-red-500/5"
+      >
+        <p class="text-red-200 font-medium mb-4 text-xl tracking-tight">
+          Compass Error
+        </p>
+        <p
+          class="text-[var(--text-muted)] mb-8 leading-relaxed max-w-xs mx-auto"
+        >
           {error}
         </p>
         <button type="button" onclick={initCompass} class="action-btn"
@@ -152,14 +161,19 @@
       </div>
     </div>
   {:else if qiblaData}
-    <div class="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full gap-8 md:gap-12">
-      
+    <div
+      class="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full gap-8 md:gap-12"
+    >
       <!-- Compass Readout -->
       <div class="text-center">
-        <h2 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter mb-2 text-[var(--text-main)]">
+        <h2
+          class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter mb-2 text-[var(--text-main)]"
+        >
           {qiblaData.degrees.toFixed(1)}°
         </h2>
-        <p class="text-[var(--text-muted)] text-xl font-medium tracking-wide uppercase">
+        <p
+          class="text-[var(--text-muted)] text-xl font-medium tracking-wide uppercase"
+        >
           {qiblaData.cardinal}
         </p>
         {#if userLocation}
@@ -171,9 +185,13 @@
       </div>
 
       <!-- Superior Visual Compass -->
-      <div class="relative w-60 h-60 sm:w-72 sm:h-72 md:w-80 md:h-80 flex items-center justify-center perspective-1000">
+      <div
+        class="relative w-60 h-60 sm:w-72 sm:h-72 md:w-80 md:h-80 flex items-center justify-center perspective-1000"
+      >
         <!-- Glow backing -->
-        <div class="absolute inset-0 bg-blue-500/10 blur-3xl rounded-full transform scale-150"></div>
+        <div
+          class="absolute inset-0 bg-[radial-gradient(circle,rgba(59,130,246,0.1)_0%,transparent_70%)] rounded-full transform scale-150"
+        ></div>
 
         <!-- Outer Track / Bezel -->
         <div
@@ -187,17 +205,35 @@
         >
           {#each Array(72) as _, i}
             <div
-              class="absolute top-0 left-1/2 w-0.5 h-3 -translate-x-1/2 origin-[50%_152px] {i % 18 === 0 ? 'bg-white/80 h-5 w-1 z-10' : i % 9 === 0 ? 'bg-white/50 h-4' : 'bg-white/20'}"
+              class="absolute top-0 left-1/2 w-0.5 h-3 -translate-x-1/2 origin-[50%_152px] {i %
+                18 ===
+              0
+                ? 'bg-white/80 h-5 w-1 z-10'
+                : i % 9 === 0
+                  ? 'bg-white/50 h-4'
+                  : 'bg-white/20'}"
               style="transform: rotate({i * 5}deg)"
             >
               {#if i === 0}
-                <span class="absolute -top-7 -left-2 text-white font-bold text-sm tracking-widest">N</span>
+                <span
+                  class="absolute -top-7 -left-2 text-white font-bold text-sm tracking-widest"
+                  >N</span
+                >
               {:else if i === 18}
-                <span class="absolute -top-7 left-1 text-white/50 font-bold text-sm -rotate-90 origin-bottom">E</span>
+                <span
+                  class="absolute -top-7 left-1 text-white/50 font-bold text-sm -rotate-90 origin-bottom"
+                  >E</span
+                >
               {:else if i === 36}
-                <span class="absolute -top-7 -left-2 text-white/50 font-bold text-sm -rotate-180">S</span>
+                <span
+                  class="absolute -top-7 -left-2 text-white/50 font-bold text-sm -rotate-180"
+                  >S</span
+                >
               {:else if i === 54}
-                <span class="absolute -top-7 -right-3 text-white/50 font-bold text-sm rotate-90 origin-bottom">W</span>
+                <span
+                  class="absolute -top-7 -right-3 text-white/50 font-bold text-sm rotate-90 origin-bottom"
+                  >W</span
+                >
               {/if}
             </div>
           {/each}
@@ -207,7 +243,9 @@
             class="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none drop-shadow-[0_0_10px_rgba(59,130,246,0.8)] z-20"
             style="transform: rotate({qiblaData.degrees}deg); transform-origin: 50% 152px;"
           >
-            <div class="w-8 h-8 rounded-full bg-blue-500/20 border-2 border-blue-400 flex items-center justify-center backdrop-blur-sm -mt-4 shadow-lg">
+            <div
+              class="w-8 h-8 rounded-full bg-blue-500/20 border-2 border-blue-400 flex items-center justify-center backdrop-blur-sm -mt-4 shadow-lg"
+            >
               <div class="w-2 h-2 bg-white rounded-full"></div>
             </div>
           </div>
@@ -220,35 +258,66 @@
         >
           <!-- Needle -->
           <div class="relative w-full h-full">
-            <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]">
+            <svg
+              viewBox="0 0 100 100"
+              class="w-full h-full drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]"
+            >
               <!-- Shadow -->
               <polygon points="50,10 65,55 50,45" fill="rgba(0,0,0,0.4)" />
               <!-- Right half (Dark) -->
-              <polygon points="50,10 65,55 50,90" fill="#2563eb" /> <!-- Blue-600 -->
+              <polygon points="50,10 65,55 50,90" fill="#2563eb" />
+              <!-- Blue-600 -->
               <!-- Left half (Light) -->
-              <polygon points="50,10 35,55 50,90" fill="#60a5fa" /> <!-- Blue-400 -->
+              <polygon points="50,10 35,55 50,90" fill="#60a5fa" />
+              <!-- Blue-400 -->
               <!-- Center pivot -->
-              <circle cx="50" cy="55" r="5" fill="#1e3a8a" /> <!-- Blue-900 -->
+              <circle cx="50" cy="55" r="5" fill="#1e3a8a" />
+              <!-- Blue-900 -->
               <circle cx="50" cy="55" r="2" fill="white" />
             </svg>
           </div>
         </div>
 
         <!-- Center cap cover -->
-        <div class="absolute inset-0 m-auto w-16 h-16 rounded-full bg-slate-900 border border-[var(--glass-border)] shadow-[0_5px_15px_rgba(0,0,0,0.5)] z-40 flex items-center justify-center">
-          <div class="w-4 h-4 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
+        <div
+          class="absolute inset-0 m-auto w-16 h-16 rounded-full bg-slate-900 border border-[var(--glass-border)] shadow-[0_5px_15px_rgba(0,0,0,0.5)] z-40 flex items-center justify-center"
+        >
+          <div
+            class="w-4 h-4 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.8)]"
+          ></div>
         </div>
       </div>
 
       <!-- Distance info -->
-      <div class="glass-card px-5 sm:px-8 py-3 sm:py-4 rounded-full flex gap-3 items-center mt-2 md:mt-4">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      <div
+        class="glass-card px-5 sm:px-8 py-3 sm:py-4 rounded-full flex gap-3 items-center mt-2 md:mt-4"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="text-blue-400"
+          ><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle
+            cx="12"
+            cy="10"
+            r="3"
+          /></svg
+        >
         <div class="h-4 w-px bg-[var(--glass-border)]"></div>
         <p class="text-[var(--text-main)]/80 font-medium tracking-wide">
-          <span class="text-[var(--text-main)] font-bold">{qiblaData.distance_km.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> km away
+          <span class="text-[var(--text-main)] font-bold"
+            >{qiblaData.distance_km.toLocaleString(undefined, {
+              maximumFractionDigits: 0,
+            })}</span
+          > km away
         </p>
       </div>
-
     </div>
   {/if}
 </div>

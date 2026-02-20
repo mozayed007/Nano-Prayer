@@ -243,11 +243,11 @@
 >
   <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col overflow-hidden">
     <header
-      class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6 relative"
+      class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6 relative"
     >
       <!-- Subtle glow under title -->
       <div
-        class="absolute left-0 top-0 w-32 h-32 bg-white/5 blur-3xl rounded-full pointer-events-none"
+        class="absolute left-0 top-0 w-[150%] aspect-square max-w-[300px] bg-[radial-gradient(circle,rgba(255,255,255,0.05)_0%,transparent_70%)] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"
       ></div>
       <div class="flex items-center gap-3 sm:gap-4 z-10">
         <a
@@ -274,7 +274,7 @@
         </h1>
       </div>
 
-      <div class="flex items-center gap-3 w-full lg:w-auto justify-end z-10">
+      <div class="flex items-center gap-3 w-full md:w-auto justify-end z-10">
         {#if saveStatus}
           <span
             class="text-green-400 text-sm font-medium bg-green-900/20 px-3 py-1 rounded-full border border-green-500/30"
@@ -315,14 +315,16 @@
           <div
             class="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"
           ></div>
-          <div class="text-xl font-medium text-[var(--text-muted)] animate-pulse">
+          <div
+            class="text-xl font-medium text-[var(--text-muted)] animate-pulse"
+          >
             Loading settings...
           </div>
         </div>
       </div>
     {:else if config}
       <div
-        class="glass-card rounded-3xl overflow-hidden flex flex-col lg:flex-row flex-1 shadow-2xl relative min-h-0"
+        class="glass-card rounded-3xl overflow-hidden flex flex-col md:flex-row flex-1 shadow-2xl relative min-h-0"
       >
         <div
           class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"
@@ -330,15 +332,15 @@
 
         <!-- Sidebar Tabs -->
         <div
-          class="settings-tabs lg:w-56 bg-black/10 p-2 sm:p-3 flex lg:flex-col gap-1 lg:gap-2 border-b lg:border-b-0 lg:border-r border-white/10 relative z-10 backdrop-blur-md overflow-x-auto lg:overflow-x-visible flex-shrink-0"
+          class="settings-tabs md:w-56 bg-black/10 p-2 sm:p-3 flex md:flex-col gap-1 md:gap-2 border-b md:border-b-0 md:border-r border-white/10 relative z-10 backdrop-blur-md overflow-x-auto md:overflow-x-visible flex-shrink-0"
         >
           {#each tabs as tab}
             <button
               type="button"
               class="text-left px-4 py-2.5 md:py-3 rounded-xl transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap {activeTab ===
               tab.id
-                ? 'bg-[var(--text-main)]/10 text-[var(--text-main)] font-semibold shadow-[0_0_15px_var(--glass-shadow)] border border-[var(--glass-border)] lg:translate-x-1'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/5 border border-transparent lg:hover:translate-x-1'}"
+                ? 'bg-[var(--text-main)]/10 text-[var(--text-main)] font-semibold shadow-[0_0_15px_var(--glass-shadow)] border border-[var(--glass-border)] md:translate-x-1'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/5 border border-transparent md:hover:translate-x-1'}"
               onclick={() => (activeTab = tab.id)}
             >
               <div
@@ -353,7 +355,9 @@
         </div>
 
         <!-- Content Area -->
-        <div class="flex-1 min-h-0 p-3 sm:p-4 md:p-5 lg:p-6 bg-transparent overflow-y-auto">
+        <div
+          class="flex-1 min-h-0 p-3 sm:p-4 md:p-5 md:p-6 bg-transparent overflow-y-auto"
+        >
           {#if activeTab === "location"}
             <div in:fade={{ duration: 200 }}>
               <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
@@ -553,7 +557,9 @@
                 <h2 class="text-xl font-bold mb-4">
                   Manual Adjustments (minutes)
                 </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div
+                  class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"
+                >
                   {#each Object.entries(config.prayer_adjustments) as [prayer]}
                     {@const adjustmentId = `adjustment-${prayer}`}
                     <div
@@ -696,7 +702,9 @@
                                   : "Default App Sound"}
                               </div>
                             </div>
-                            <div class="flex flex-wrap gap-2 items-start xl:justify-end">
+                            <div
+                              class="flex flex-wrap gap-2 items-start xl:justify-end"
+                            >
                               <button
                                 type="button"
                                 class="px-4 py-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg text-sm transition font-medium border border-blue-500/20 w-full sm:w-auto text-center"
@@ -729,7 +737,9 @@
                                 <span
                                   class="px-3 py-2 text-xs font-semibold rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 w-full sm:w-auto text-center"
                                 >
-                                  {previewPaused ? "Preview paused" : "Preview playing"}
+                                  {previewPaused
+                                    ? "Preview paused"
+                                    : "Preview playing"}
                                 </span>
                               {/if}
                             </div>
@@ -831,7 +841,9 @@
                   class="bg-[var(--glass-bg)] p-6 rounded-xl border border-[var(--glass-border)]"
                 >
                   <div class="flex justify-between mb-2">
-                    <label for="global-volume" class="font-medium text-[var(--text-main)]"
+                    <label
+                      for="global-volume"
+                      class="font-medium text-[var(--text-main)]"
                       >Global Volume</label
                     >
                     <span class="font-mono text-[var(--text-muted)]"
@@ -943,4 +955,3 @@
     }
   }
 </style>
-

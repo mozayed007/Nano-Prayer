@@ -122,43 +122,9 @@ pub async fn get_monthly_prayer_times(state: State<'_, AppState>, year: i32, mon
     Ok(responses)
 }
 
-fn resolve_default_adhan_path(app: &tauri::AppHandle, is_fajr: bool) -> Option<PathBuf> {
-    let adhan_file = if is_fajr { "adhan_fajr.mp3" } else { "adhan.mp3" };
-
-    // Try Resource directory (works for installed apps)
-    if let Ok(resource_dir) = app.path().resolve("assets", tauri::path::BaseDirectory::Resource) {
-        let bundled_path = resource_dir.join(adhan_file);
-        if bundled_path.exists() {
-            return Some(bundled_path);
-        }
-    }
-
-    // Try resource path relative to executable (for portable)
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let portable_path = exe_dir.join("resources").join("assets").join(adhan_file);
-            if portable_path.exists() {
-                return Some(portable_path);
-            }
-            let alt_portable_path = exe_dir.join("assets").join(adhan_file);
-            if alt_portable_path.exists() {
-                return Some(alt_portable_path);
-            }
-        }
-    }
-
-    // Dev fallback when running from source
-    let dev_path = PathBuf::from("src-tauri").join("assets").join(adhan_file);
-    if dev_path.exists() {
-        return Some(dev_path);
-    }
-
-    None
-}
-
 #[tauri::command]
 pub async fn play_adhan(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     state: State<'_, AudioState>,
     custom_path: Option<String>,
     volume: Option<f32>,
@@ -166,18 +132,21 @@ pub async fn play_adhan(
 ) -> std::result::Result<(), String> {
     let volume = volume.unwrap_or(1.0).clamp(0.0, 1.0);
 
-    let path = if let Some(path_str) = custom_path.filter(|p| !p.trim().is_empty()) {
-        PathBuf::from(path_str)
+    if let Some(path_str) = custom_path.filter(|p| !p.trim().is_empty()) {
+        let path = PathBuf::from(path_str);
+        if !path.exists() {
+            return Err(format!("Audio file not found: {}", path.display()));
+        }
+        state.inner().0.play_file(path, volume)?;
     } else {
-        resolve_default_adhan_path(&app, is_fajr.unwrap_or(false))
-            .ok_or_else(|| "No bundled adhan audio file found.".to_string())?
-    };
-
-    if !path.exists() {
-        return Err(format!("Audio file not found: {}", path.display()));
+        let bytes = if is_fajr.unwrap_or(false) {
+            include_bytes!("../../assets/adhan_fajr.mp3").as_slice()
+        } else {
+            include_bytes!("../../assets/adhan.mp3").as_slice()
+        };
+        state.inner().0.play_embedded(bytes, volume)?;
     }
 
-    state.inner().0.play_file(path, volume)?;
     Ok(())
 }
 
