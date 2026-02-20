@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for the app",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-set-title",
+    "core:path:default",
+    "core:event:default",
+    "dialog:default",
+    "fs:default",
+    "notification:default",
+    "autostart:default"
+  ]
+}

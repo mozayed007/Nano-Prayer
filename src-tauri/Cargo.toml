@@ -1,0 +1,38 @@
+[package]
+name = "nano-pray-reminder"
+version = "0.1.0"
+description = "A modern, lightweight Islamic prayer time reminder app"
+authors = ["Muhammad Z. Ahmed"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = ["tray-icon"] }
+tauri-plugin-notification = "2.0"
+tauri-plugin-autostart = "2.0"
+tauri-plugin-dialog = "2.0"
+tauri-plugin-fs = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { workspace = true }
+
+# Core library
+nano-pray-core = { path = "../core" }
+
+# Async runtime (minimal features)
+tokio = { version = "1.0", features = ["time"] }
+
+# Audio
+rodio = { version = "0.19", default-features = false, features = ["mp3", "wav"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tauri-plugin-updater = "2.10.0"
+tauri-plugin-global-shortcut = "2.3.1"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

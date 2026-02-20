@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #2563eb;
+  --primary-glow: rgba(37, 99, 235, 0.4);
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: rgba(0, 0, 0, 0.1);
+  --text-main: #ffffff;
+  --on-text-main: #0f172a;
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --bg-gradient: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                 radial-gradient(at 50% 0%, hsla(225,39%,30%,0.2) 0, transparent 50%), 
+                 radial-gradient(at 100% 0%, hsla(339,49%,30%,0.2) 0, transparent 50%);
+}
+
+.light {
+  --primary: #2563eb;
+  --primary-glow: rgba(37, 99, 235, 0.2);
+  --glass-bg: rgba(0, 0, 0, 0.05);
+  --glass-border: rgba(0, 0, 0, 0.15);
+  --glass-shadow: rgba(0, 0, 0, 0.08);
+  --text-main: #0f172a;
+  --on-text-main: #f8fafc;
+  --text-muted: #475569;
+  --bg-gradient: radial-gradient(at 0% 0%, hsla(210, 40%, 98%, 1) 0, transparent 50%),
+                 radial-gradient(at 50% 0%, hsla(220, 30%, 94%, 0.5) 0, transparent 50%),
+                 radial-gradient(at 100% 0%, hsla(200, 20%, 90%, 0.5) 0, transparent 50%);
+}
+
+body {
+  background-color: #0f172a;
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  transition: background 0.5s ease, color 0.3s ease;
+}
+
+body.light {
+  background-color: #f8fafc;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 30px var(--glass-shadow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: color-mix(in srgb, var(--glass-bg), white 5%);
+  box-shadow: 0 8px 40px var(--glass-shadow);
+}
+
+.action-btn {
+  background: var(--primary);
+  padding: 0.6rem 1.75rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.action-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--primary-glow);
+}

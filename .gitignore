@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+/build/
+/dist/
+/.svelte-kit/
+
+# Rust
+/target/
+Cargo.lock
+
+# Tauri
+/src-tauri/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+build_log.txt
+tauri_build_console.txt
+tauri_build_log.txt
+
+# Testing
+coverage/
+.nyc_output/
+
+# Tauri plugins
+src-tauri/gen/

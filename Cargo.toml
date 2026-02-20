@@ -1,0 +1,64 @@
+[workspace]
+resolver = "2"
+members = [
+    "core",
+    "src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Muhammad Z. Ahmed"]
+license = "MIT"
+repository = "https://github.com/your-repo/nano-pray-reminder"
+description = "A modern, lightweight Islamic prayer time reminder app built with Rust"
+readme = "README.md"
+
+[workspace.dependencies]
+# Prayer calculation
+salah = "0.7"
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+color-eyre = "0.6"
+
+# Config persistence
+confy = "0.6"
+
+# Audio
+rodio = { version = "0.19", default-features = false, features = ["mp3", "wav"] }
+
+# HTTP (optional, for location/weather)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# UUID for unique identifiers
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+[profile.dev]
+debug = 0
+split-debuginfo = "off"
+
+[profile.release]
+opt-level = "z"
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+debug = 0

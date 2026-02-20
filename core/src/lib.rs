@@ -1,0 +1,43 @@
+//! NanoPrayReminder Core Library
+//!
+//! A high-precision Islamic prayer time calculation library built on the `salah` crate.
+//! Provides prayer times, Qibla direction, Hijri calendar, location management,
+//! reminders, and prayer statistics.
+
+pub mod config;
+pub mod error;
+pub mod hijri;
+pub mod location;
+pub mod prayer;
+pub mod qibla;
+pub mod reminder;
+pub mod statistics;
+
+#[cfg(feature = "audio")]
+pub mod audio;
+
+#[cfg(feature = "network")]
+pub mod weather;
+
+// Re-exports for convenience
+pub use config::AppConfig;
+pub use error::{Error, Result};
+pub use hijri::HijriDate;
+pub use location::{City, Coordinates, LocationManager};
+pub use prayer::{PrayerInfo, PrayerTimes, PrayerCalculator};
+pub use qibla::QiblaDirection;
+pub use reminder::{Reminder, ReminderScheduler};
+pub use statistics::{PrayerLog, Statistics};
+
+/// Prelude for common imports
+pub mod prelude {
+    pub use crate::config::AppConfig;
+    pub use crate::error::{Error, Result};
+    pub use crate::hijri::HijriDate;
+    pub use crate::location::{City, Coordinates, LocationManager};
+    pub use crate::prayer::{Prayer, PrayerCalculator, PrayerTimes};
+    pub use crate::qibla::QiblaDirection;
+    pub use crate::reminder::{Reminder, ReminderScheduler};
+    pub use crate::statistics::{PrayerLog, Statistics};
+    pub use chrono::{DateTime, Local, NaiveDate, NaiveTime, TimeZone, Utc};
+}
