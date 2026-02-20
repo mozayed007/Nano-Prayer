@@ -104,22 +104,21 @@
   });
 
   function getGradientClass(nextPrayer: string | null): string {
-    // Richer, more saturated gradients for a premium feel
     switch (nextPrayer?.toLowerCase()) {
       case "fajr":
-        return "bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#312e81]";
+        return "bg-gradient-to-br from-[#0c1222] via-[#1a2744] to-[#1e3a5f]";
       case "sunrise":
-        return "bg-gradient-to-br from-[#4c1d95] via-[#9f1239] to-[#be123c]";
+        return "bg-gradient-to-br from-[#1a2744] via-[#2d4a6f] to-[#4a6fa5]";
       case "dhuhr":
-        return "bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#0f172a]";
+        return "bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#2d4a6f]";
       case "asr":
-        return "bg-gradient-to-br from-[#4338ca] via-[#3730a3] to-[#312e81]";
+        return "bg-gradient-to-br from-[#0f1729] via-[#1e2d4d] to-[#2d4a6f]";
       case "maghrib":
-        return "bg-gradient-to-br from-[#9a3412] via-[#7f1d1d] to-[#4c1d95]";
+        return "bg-gradient-to-br from-[#1a1a2e] via-[#2d3a4f] to-[#1e3a5f]";
       case "isha":
-        return "bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#1e1b4b]";
+        return "bg-gradient-to-br from-[#080c14] via-[#0f1729] to-[#1a2744]";
       default:
-        return "bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#020617]";
+        return "bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0c1222]";
     }
   }
 

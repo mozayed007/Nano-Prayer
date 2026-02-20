@@ -125,6 +125,7 @@ pub async fn get_monthly_prayer_times(state: State<'_, AppState>, year: i32, mon
 fn resolve_default_adhan_path(app: &tauri::AppHandle, is_fajr: bool) -> Option<PathBuf> {
     let adhan_file = if is_fajr { "adhan_fajr.mp3" } else { "adhan.mp3" };
 
+    // Try Resource directory (works for installed apps)
     if let Ok(resource_dir) = app.path().resolve("assets", tauri::path::BaseDirectory::Resource) {
         let bundled_path = resource_dir.join(adhan_file);
         if bundled_path.exists() {
@@ -132,7 +133,21 @@ fn resolve_default_adhan_path(app: &tauri::AppHandle, is_fajr: bool) -> Option<P
         }
     }
 
-    // Dev fallback when running from source.
+    // Try resource path relative to executable (for portable)
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let portable_path = exe_dir.join("resources").join("assets").join(adhan_file);
+            if portable_path.exists() {
+                return Some(portable_path);
+            }
+            let alt_portable_path = exe_dir.join("assets").join(adhan_file);
+            if alt_portable_path.exists() {
+                return Some(alt_portable_path);
+            }
+        }
+    }
+
+    // Dev fallback when running from source
     let dev_path = PathBuf::from("src-tauri").join("assets").join(adhan_file);
     if dev_path.exists() {
         return Some(dev_path);
@@ -257,3 +272,4 @@ pub fn get_hijri_date(offset_days: Option<i32>) -> std::result::Result<HijriResp
 pub fn send_notification(app: tauri::AppHandle, title: String, body: String) -> std::result::Result<(), String> {
     app.notification().builder().title(&title).body(&body).show().map_err(|e: tauri_plugin_notification::Error| e.to_string())
 }
+

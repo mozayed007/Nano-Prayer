@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #2563eb;
-  --primary-glow: rgba(37, 99, 235, 0.4);
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: rgba(0, 0, 0, 0.1);
-  --text-main: #ffffff;
+  --primary: #3b82f6;
+  --primary-glow: rgba(59, 130, 246, 0.3);
+  --glass-bg: rgba(255, 255, 255, 0.02);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: rgba(0, 0, 0, 0.15);
+  --text-main: #f1f5f9;
   --on-text-main: #0f172a;
-  --text-muted: rgba(255, 255, 255, 0.6);
-  --bg-gradient: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                 radial-gradient(at 50% 0%, hsla(225,39%,30%,0.2) 0, transparent 50%), 
-                 radial-gradient(at 100% 0%, hsla(339,49%,30%,0.2) 0, transparent 50%);
+  --text-muted: rgba(241, 245, 249, 0.5);
+  --bg-gradient: radial-gradient(at 0% 0%, hsla(220, 20%, 8%, 1) 0, transparent 50%),
+                 radial-gradient(at 50% 0%, hsla(215, 25%, 12%, 0.5) 0, transparent 50%),
+                 radial-gradient(at 100% 0%, hsla(230, 30%, 10%, 0.5) 0, transparent 50%);
 }
 
 .light {
