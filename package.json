@@ -1,7 +1,13 @@
 {
   "name": "nano-pray-reminder",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "license": "MIT",
+  "author": "Mo Zayed",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mozayed007/Nano-Prayer.git"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "svelte-kit sync && vite build",
