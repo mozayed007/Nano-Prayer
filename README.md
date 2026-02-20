@@ -115,43 +115,37 @@ pwsh -NoProfile -File ./scripts/prune-target.ps1 -KeepDebug
 
 This roadmap is a planning guide and can evolve based on user feedback and release priorities.
 
-### Phase 1: UI/UX Improvements
+### MVP Next 30 Days
 
-- Improve visual hierarchy, spacing, and layout consistency across all pages
-- Expand responsive behavior for compact desktop windows and split-screen use
-- Improve navigation flow and interaction polish (transitions, micro-feedback)
-- Run accessibility improvements (contrast, keyboard flow, focus states)
+- Improve core UI/UX polish across all desktop pages (layout consistency, spacing, navigation flow, accessibility)
+- Finalize responsive behavior for compact windows and split-screen usage
+- Add first expanded theme pack (beyond light/dark/system) with safer contrast defaults
+- Add initial font customization options (readability-first + modern display option)
+- Add desktop taskbar widget / mini next-prayer countdown surface
+- Harden reminders and background behavior (tray/minimize lifecycle, notification reliability)
+- Prepare release-quality installer cadence and regression checklist
 
-### Phase 2: Personalization (Themes and Fonts)
+### Quarterly Goals (Next 3 Months)
 
-- Add richer theme system beyond current light/dark/system options
-- Add user-selectable theme presets and custom accent palettes
-- Add font options (readability-focused + modern display options)
-- Add UI density modes (comfortable/compact)
+- Deliver full personalization suite: theme presets, custom accents, font families, and density modes
+- Expand desktop shell features: richer tray quick actions, quick mute/snooze, and one-click prayer shortcuts
+- Improve analytics and daily workflow UX (faster log interactions, clearer progress views)
+- Build automated UI regression + backend integration test coverage for critical flows
+- Define and ship mobile architecture baseline (shared models, API boundaries, state sync strategy)
 
-### Phase 3: Desktop Enhancements
+### Long-Term Vision (6-18 Months)
 
-- Add taskbar widget / mini countdown surface for next prayer
-- Expand tray quick actions (mute, snooze, jump to prayer page)
-- Improve startup/minimize behavior and background notification experience
-
-### Phase 4: Mobile App Version
-
-- Build a mobile companion app (Android/iOS)
-- Share settings and reminder profile model between desktop and mobile
-- Keep offline-first behavior on mobile with optional cloud sync
-
-### Phase 5: IoT and Smart Device Support
-
-- Add IoT support path (smart displays, speakers, automation endpoints)
-- Provide local network integrations (webhooks or lightweight local API)
-- Add optional integrations for smart home routines around prayer times
+- Launch mobile companion apps (Android/iOS) with shared reminder and schedule experience
+- Add optional cross-device sync for settings, locations, and user preferences
+- Ship IoT support path (smart displays/speakers/home automation endpoints)
+- Provide local network integrations (webhooks/lightweight local API) for smart-home routines
+- Evolve NanoPrayer into a multi-surface prayer platform (desktop, mobile, and ambient devices)
 
 ### Ongoing Engineering Track
 
-- Expand automated testing (UI regression + backend integration)
-- Improve updater/release channel workflow
-- Continue binary size and performance optimization
+- Continue binary size and startup-time optimization
+- Strengthen updater/release channels and rollback safety
+- Maintain quality bar with accessibility and performance audits on each release cycle
 
 ## License
 
