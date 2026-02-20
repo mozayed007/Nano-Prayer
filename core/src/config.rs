@@ -196,12 +196,24 @@ impl Default for AppConfig {
 
 impl AppConfig {
     pub fn load() -> Result<Self> {
-        let config: Self = confy::load("nano-pray-reminder", "config")?;
+        let path = std::env::current_exe()
+            .unwrap_or_default()
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join("config.toml");
+        
+        let config: Self = confy::load_path(&path)?;
         Ok(config)
     }
 
     pub fn save(&self) -> Result<()> {
-        confy::store("nano-pray-reminder", "config", self)?;
+        let path = std::env::current_exe()
+            .unwrap_or_default()
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join("config.toml");
+            
+        confy::store_path(&path, self)?;
         Ok(())
     }
 
@@ -268,3 +280,4 @@ mod tests {
         assert_eq!(fajr_reminder.minutes_before, 15);
     }
 }
+

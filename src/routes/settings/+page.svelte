@@ -693,7 +693,7 @@
                               >
                                 {settings.custom_sound
                                   ? settings.custom_sound.split(/[\\/]/).pop()
-                                  : "Default System Sound"}
+                                  : "Default App Sound"}
                               </div>
                             </div>
                             <div class="flex flex-wrap gap-2 items-start xl:justify-end">
@@ -943,3 +943,4 @@
     }
   }
 </style>
+
