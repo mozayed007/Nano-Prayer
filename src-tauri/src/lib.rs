@@ -1,20 +1,25 @@
 //! NanoPrayReminder Tauri Application
 
 use std::sync::Mutex;
-use tauri::Manager;
-use tauri::menu::{Menu, MenuItem, CheckMenuItemBuilder};
+use tauri::menu::{CheckMenuItemBuilder, Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
+use tauri::Manager;
 
-mod commands;
 mod audio;
+mod commands;
 mod scheduler;
+mod webview2_check;
 
-use commands::AppState;
 use audio::AudioState;
+use commands::AppState;
 use scheduler::Scheduler;
 
 pub fn run() {
+    webview2_check::check_webview2_runtime();
+
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -31,16 +36,16 @@ pub fn run() {
         .manage(AudioState(std::sync::Arc::new(audio::AudioPlayer::new())))
         .setup(|app| {
             tracing_subscriber::fmt::init();
-            
+
             // Initialize Tray
             let mute_i = CheckMenuItemBuilder::with_id("mute", "Mute Reminders")
                 .checked(false)
                 .build(app)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            
+
             let menu = Menu::with_items(app, &[&show_i, &mute_i, &quit_i])?;
-            
+
             if let Some(icon) = app.default_window_icon() {
                 let _tray = TrayIconBuilder::with_id("tray")
                     .icon(icon.clone())

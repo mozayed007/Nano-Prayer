@@ -78,3 +78,14 @@ docs/
 *.bak
 *.orig
 *.rej
+
+# Release assets (built locally)
+/release-assets/
+
+# Build scripts (local utilities)
+*.ps1
+
+# Misc local files
+body.txt
+telemetry-id
+nul
