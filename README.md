@@ -1,7 +1,6 @@
 # NanoPrayReminder
 
-![NanoPrayReminder Banner](src-tauri/assets/nanp-prayer-2.png)
-
+![NanoPrayReminder Banner](static/banner.png)
 > **Credits:** Banner and App Icon Design by [AhmedV19](https://x.com/A7medV19)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
