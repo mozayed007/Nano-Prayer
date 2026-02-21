@@ -8,6 +8,7 @@
   import { check } from "@tauri-apps/plugin-updater";
   import { isRegistered, register } from "@tauri-apps/plugin-global-shortcut";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import PrayerAlert from "$lib/components/PrayerAlert.svelte";
 
   interface PrayerTimesResponse {
     next_prayer: string | null;
@@ -283,12 +284,37 @@
             ></div>
           {/if}
         </a>
+        <a
+          href="/about"
+          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 relative group {$page.url.pathname.startsWith(
+            '/about',
+          )
+            ? 'text-[var(--text-main)] bg-[var(--text-main)]/20 shadow-md'
+            : 'text-[var(--text-muted)]'}"
+        >
+          <span class="text-xl group-hover:scale-110 transition-transform"
+            >ℹ️</span
+          >
+          <span class="hidden lg:inline text-sm font-semibold tracking-wide"
+            >About</span
+          >
+          {#if $page.url.pathname.startsWith("/about")}
+            <div
+              class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-[var(--text-main)] rounded-t-full"
+              in:fade
+            ></div>
+          {/if}
+        </a>
       </nav>
     </div>
 
-    <main class="flex-1 min-h-0 w-full mx-auto relative z-10 pt-2 md:pt-4 pb-3 px-2 sm:px-4">
+    <main
+      class="flex-1 min-h-0 w-full mx-auto relative z-10 pt-2 md:pt-4 pb-3 px-2 sm:px-4"
+    >
       {@render children()}
     </main>
+
+    <PrayerAlert />
   </div>
 {/if}
 

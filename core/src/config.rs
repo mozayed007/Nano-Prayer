@@ -33,7 +33,13 @@ pub enum ClockFormat {
 pub struct ReminderConfig {
     pub enabled: bool,
     pub minutes_before: i32,
+    #[serde(default)]
+    pub play_sound_before: bool,
     pub play_adhan: bool,
+    #[serde(default)]
+    pub minutes_after: i32,
+    #[serde(default)]
+    pub play_sound_after: bool,
     pub custom_sound: Option<PathBuf>,
     pub volume: f32,
     pub show_notification: bool,
@@ -44,7 +50,10 @@ impl Default for ReminderConfig {
         Self {
             enabled: true,
             minutes_before: 15,
+            play_sound_before: false,
             play_adhan: true,
+            minutes_after: 0,
+            play_sound_after: false,
             custom_sound: None,
             volume: 0.7,
             show_notification: true,

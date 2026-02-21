@@ -205,33 +205,39 @@
         >
           {#each Array(72) as _, i}
             <div
-              class="absolute top-0 left-1/2 w-0.5 h-3 -translate-x-1/2 origin-[50%_152px] {i %
+              class="absolute top-0 bottom-0 left-1/2 w-0 border-l border-transparent {i %
                 18 ===
               0
-                ? 'bg-white/80 h-5 w-1 z-10'
-                : i % 9 === 0
-                  ? 'bg-white/50 h-4'
-                  : 'bg-white/20'}"
+                ? 'z-10'
+                : ''}"
               style="transform: rotate({i * 5}deg)"
             >
+              <div
+                class="w-0.5 -translate-x-1/2 {i % 18 === 0
+                  ? 'bg-white/80 h-5 w-1'
+                  : i % 9 === 0
+                    ? 'bg-white/50 h-4'
+                    : 'bg-white/20 h-3'}"
+              ></div>
+
               {#if i === 0}
                 <span
-                  class="absolute -top-7 -left-2 text-white font-bold text-sm tracking-widest"
+                  class="absolute -top-7 -left-1.5 text-white font-bold text-sm tracking-widest"
                   >N</span
                 >
               {:else if i === 18}
                 <span
-                  class="absolute -top-7 left-1 text-white/50 font-bold text-sm -rotate-90 origin-bottom"
+                  class="absolute top-1/2 -right-7 -translate-y-1/2 text-white/50 font-bold text-sm -rotate-90 origin-center"
                   >E</span
                 >
               {:else if i === 36}
                 <span
-                  class="absolute -top-7 -left-2 text-white/50 font-bold text-sm -rotate-180"
+                  class="absolute -bottom-7 -left-1.5 text-white/50 font-bold text-sm -rotate-180"
                   >S</span
                 >
               {:else if i === 54}
                 <span
-                  class="absolute -top-7 -right-3 text-white/50 font-bold text-sm rotate-90 origin-bottom"
+                  class="absolute top-1/2 -left-7 -translate-y-1/2 text-white/50 font-bold text-sm rotate-90 origin-center"
                   >W</span
                 >
               {/if}
@@ -240,11 +246,11 @@
 
           <!-- The Qibla Marker on the Bezel -->
           <div
-            class="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none drop-shadow-[0_0_10px_rgba(59,130,246,0.8)] z-20"
-            style="transform: rotate({qiblaData.degrees}deg); transform-origin: 50% 152px;"
+            class="absolute top-0 bottom-0 left-1/2 w-0 border-l border-transparent pointer-events-none drop-shadow-[0_0_10px_rgba(59,130,246,0.8)] z-20"
+            style="transform: rotate({qiblaData.degrees}deg);"
           >
             <div
-              class="w-8 h-8 rounded-full bg-blue-500/20 border-2 border-blue-400 flex items-center justify-center backdrop-blur-sm -mt-4 shadow-lg"
+              class="absolute top-0 -translate-x-1/2 w-8 h-8 rounded-full bg-blue-500/20 border-2 border-blue-400 flex items-center justify-center backdrop-blur-sm -mt-4 shadow-lg"
             >
               <div class="w-2 h-2 bg-white rounded-full"></div>
             </div>

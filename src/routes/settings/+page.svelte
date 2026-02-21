@@ -238,12 +238,12 @@
 </svelte:head>
 
 <div
-  class="settings-shell h-full min-h-0 bg-transparent text-[var(--text-main)] p-3 sm:p-4 md:p-6 flex flex-col pt-1 md:pt-2 overflow-y-auto overflow-x-hidden"
+  class="settings-shell h-full min-h-0 bg-transparent text-[var(--text-main)] p-2 sm:p-4 md:p-6 flex flex-col pt-1 md:pt-2 overflow-hidden"
   in:fade={{ duration: 400 }}
 >
-  <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col overflow-hidden">
+  <div class="max-w-6xl mx-auto w-full h-full flex flex-col overflow-hidden">
     <header
-      class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6 relative"
+      class="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-6 relative flex-shrink-0"
     >
       <!-- Subtle glow under title -->
       <div
@@ -638,46 +638,107 @@
                         class="p-4 space-y-4 border-t border-[var(--glass-border)] bg-[var(--text-main)]/5"
                         transition:fade
                       >
-                        <div
-                          class="flex flex-col md:flex-row md:items-center gap-4"
-                        >
-                          <label class="flex-1" for={reminderMinutesId}>
-                            <span
-                              class="block text-sm text-[var(--text-muted)] mb-1"
-                              >Reminder (Minutes Before)</span
-                            >
-                            <input
-                              id={reminderMinutesId}
-                              type="number"
-                              bind:value={settings.minutes_before}
-                              min="0"
-                              max="60"
-                              class="w-full bg-[var(--text-main)]/5 border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-main)] focus:border-blue-500 outline-none"
-                            />
-                          </label>
-
-                          <div class="flex-1 flex flex-col gap-3 pt-1">
+                        <div class="flex flex-col gap-4">
+                          <!-- Before Reminder -->
+                          <div
+                            class="flex flex-col md:flex-row md:items-center gap-4 bg-[var(--text-main)]/5 p-3 rounded-xl border border-[var(--glass-border)]"
+                          >
                             <label
-                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)]"
+                              class="flex-1"
+                              for={`reminder-before-${prayer}`}
                             >
-                              <input
-                                type="checkbox"
-                                bind:checked={settings.show_notification}
-                                class="accent-blue-500 w-4 h-4 rounded"
-                              />
-                              <span class="text-sm"
-                                >Show System Notification</span
+                              <span
+                                class="block text-sm font-semibold text-[var(--text-main)] mb-1"
+                                >Before Prayer (Minutes)</span
                               >
+                              <input
+                                id={`reminder-before-${prayer}`}
+                                type="number"
+                                bind:value={settings.minutes_before}
+                                min="0"
+                                max="60"
+                                class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-main)] focus:border-blue-500 outline-none"
+                              />
                             </label>
                             <label
-                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)]"
+                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
                             >
                               <input
                                 type="checkbox"
-                                bind:checked={settings.play_adhan}
+                                bind:checked={settings.play_sound_before}
                                 class="accent-blue-500 w-4 h-4 rounded"
                               />
-                              <span class="text-sm">Play Audio (Adhan)</span>
+                              <span class="text-sm">Play Alert Sound</span>
+                            </label>
+                          </div>
+
+                          <!-- On Time Reminder -->
+                          <div
+                            class="flex flex-col md:flex-row md:items-center gap-4 bg-[var(--text-main)]/5 p-3 rounded-xl border border-[var(--glass-border)]"
+                          >
+                            <div class="flex-1">
+                              <span
+                                class="block text-sm font-semibold text-[var(--text-main)] mb-1"
+                                >On Time (Adhan)</span
+                              >
+                              <span class="text-xs text-[var(--text-muted)]"
+                                >Audio file options below when enabled</span
+                              >
+                            </div>
+                            <div class="flex flex-col gap-2 md:min-w-[180px]">
+                              <label
+                                class="flex items-center gap-3 cursor-pointer p-1 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)]"
+                              >
+                                <input
+                                  type="checkbox"
+                                  bind:checked={settings.show_notification}
+                                  class="accent-blue-500 w-4 h-4 rounded"
+                                />
+                                <span class="text-sm">Show App Popup</span>
+                              </label>
+                              <label
+                                class="flex items-center gap-3 cursor-pointer p-1 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)]"
+                              >
+                                <input
+                                  type="checkbox"
+                                  bind:checked={settings.play_adhan}
+                                  class="accent-blue-500 w-4 h-4 rounded"
+                                />
+                                <span class="text-sm">Play Audio (Adhan)</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <!-- After Reminder -->
+                          <div
+                            class="flex flex-col md:flex-row md:items-center gap-4 bg-[var(--text-main)]/5 p-3 rounded-xl border border-[var(--glass-border)]"
+                          >
+                            <label
+                              class="flex-1"
+                              for={`reminder-after-${prayer}`}
+                            >
+                              <span
+                                class="block text-sm font-semibold text-[var(--text-main)] mb-1"
+                                >After Prayer (Minutes)</span
+                              >
+                              <input
+                                id={`reminder-after-${prayer}`}
+                                type="number"
+                                bind:value={settings.minutes_after}
+                                min="0"
+                                max="60"
+                                class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-main)] focus:border-blue-500 outline-none"
+                              />
+                            </label>
+                            <label
+                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
+                            >
+                              <input
+                                type="checkbox"
+                                bind:checked={settings.play_sound_after}
+                                class="accent-blue-500 w-4 h-4 rounded"
+                              />
+                              <span class="text-sm">Play Alert Sound</span>
                             </label>
                           </div>
                         </div>

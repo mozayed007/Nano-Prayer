@@ -40,14 +40,65 @@
   let lastPrayer = $state<string | null>(null);
   let rotationDegrees = $state(0);
 
+  // Helper to convert HH:MM to minutes from midnight
+  function timeStringToMinutes(timeStr: string): number {
+    if (!timeStr || timeStr === "--:--") return 0;
+    const [h, m] = timeStr.split(":").map(Number);
+    return h * 60 + m;
+  }
+
   // Hourglass sand computations
   let hourglassProgress = $derived.by(() => {
     if (
-      prayerTimes?.minutes_to_next === undefined ||
-      prayerTimes?.minutes_to_next === null
-    )
+      !prayerTimes ||
+      prayerTimes.minutes_to_next === null ||
+      prayerTimes.minutes_to_next === undefined
+    ) {
       return 0;
-    const progress = getProgress(prayerTimes.minutes_to_next) / 100;
+    }
+
+    if (!prayerTimes.current_prayer || !prayerTimes.next_prayer) {
+      return Math.max(
+        0,
+        Math.min(1, getProgress(prayerTimes.minutes_to_next) / 100),
+      );
+    }
+
+    // Attempt to calculate total time between current (previous) and next prayer
+    const currentKey =
+      prayerTimes.current_prayer.toLowerCase() as keyof PrayerTimes;
+    const nextKey = prayerTimes.next_prayer.toLowerCase() as keyof PrayerTimes;
+
+    const currentTimeStr = prayerTimes[currentKey] as string;
+    const nextTimeStr = prayerTimes[nextKey] as string;
+
+    if (
+      !currentTimeStr ||
+      !nextTimeStr ||
+      currentTimeStr === "--:--" ||
+      nextTimeStr === "--:--"
+    ) {
+      return Math.max(
+        0,
+        Math.min(1, getProgress(prayerTimes.minutes_to_next) / 100),
+      );
+    }
+
+    const currentMins = timeStringToMinutes(currentTimeStr);
+    let nextMins = timeStringToMinutes(nextTimeStr);
+
+    // If next prayer is earlier in the day than current (e.g., Isha to Fajr next day)
+    if (nextMins <= currentMins) {
+      nextMins += 24 * 60;
+    }
+
+    const totalMinutes = nextMins - currentMins;
+    if (totalMinutes <= 0) return 1;
+
+    // Elapsed time is total time minus the remaining time
+    const elapsedMinutes = totalMinutes - prayerTimes.minutes_to_next;
+    const progress = elapsedMinutes / totalMinutes;
+
     return Math.max(0, Math.min(1, progress));
   });
 
@@ -206,7 +257,7 @@
   </div>
 {:else}
   <div
-    class="praytime-page flex flex-col gap-3 md:gap-4 h-full min-h-0 max-w-6xl mx-auto w-full pt-1 md:pt-2 pb-4 md:pb-6 overflow-y-auto overflow-x-hidden"
+    class="praytime-page flex flex-col gap-2 md:gap-3 h-full min-h-0 max-w-6xl mx-auto w-full pt-1 pb-2 md:pb-4 overflow-hidden"
     in:fade={{ duration: 500 }}
   >
     <!-- Header -->
@@ -248,10 +299,12 @@
       class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 lg:flex-1 min-h-0"
     >
       <!-- Left Column: Timer & Info -->
-      <div class="flex flex-col gap-4 md:gap-6 lg:col-span-6 xl:col-span-7">
+      <div
+        class="flex flex-col gap-3 md:gap-4 lg:col-span-6 xl:col-span-7 h-full min-h-0"
+      >
         <!-- Countdown Card -->
         <div
-          class="countdown-card backdrop-blur-3xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 md:p-6 lg:p-8 rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden min-h-[220px] md:min-h-[280px] lg:h-full lg:min-h-0 shadow-[0_8px_32px_var(--glass-shadow)] group"
+          class="countdown-card backdrop-blur-3xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-3 md:p-5 lg:p-6 rounded-[1.5rem] md:rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden flex-1 min-h-[160px] shadow-[0_8px_32px_var(--glass-shadow)] group"
         >
           <div
             class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] md:w-[120%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_70%)] opacity-50 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none clamp-size"
@@ -261,10 +314,10 @@
             class="relative z-10 text-center flex flex-col items-center w-full"
           >
             <div
-              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-5 sm:px-8 py-2 sm:py-2.5 rounded-full backdrop-blur-md mb-3 md:mb-4 lg:mb-8 shadow-inner"
+              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-4 sm:px-6 py-1.5 sm:py-2 rounded-full backdrop-blur-md mb-2 md:mb-3 lg:mb-5 shadow-inner"
             >
               <span
-                class="text-lg sm:text-xl md:text-2xl font-mono font-medium tracking-widest text-[var(--text-main)]/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                class="text-base sm:text-lg md:text-xl font-mono font-medium tracking-widest text-[var(--text-main)]/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
               >
                 {formatTime(currentTime)}
               </span>
@@ -277,7 +330,7 @@
               >
                 <!-- Enhanced Progress Ring / Circular Hourglass -->
                 <svg
-                  class="ring-visual w-[55vw] sm:w-[50vw] md:w-[45vw] lg:w-[40vw] max-w-[300px] aspect-square drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] max-h-[60vh]"
+                  class="ring-visual w-[60vw] sm:w-[50vw] md:w-[45vw] lg:w-[40vw] max-w-[340px] aspect-square drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] max-h-[60vh] p-2 sm:p-4"
                   viewBox="0 0 288 288"
                 >
                   <defs>
@@ -341,18 +394,18 @@
                   class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
                 >
                   <span
-                    class="minutes-text text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-lg"
+                    class="minutes-text text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-lg"
                     >{formatMinutes(prayerTimes.minutes_to_next)}</span
                   >
                   <span
-                    class="text-[var(--text-muted)] text-[10px] sm:text-xs uppercase tracking-[0.25em] mt-1.5 md:mt-2 font-bold"
+                    class="text-[var(--text-muted)] text-[9px] sm:text-[10px] md:text-xs uppercase tracking-[0.2em] mt-1 font-bold"
                     >Until {prayerTimes.next_prayer}</span
                   >
                 </div>
               </div>
 
               <div
-                class="mt-3 md:mt-4 lg:mt-8 xl:mt-10 flex items-center justify-center gap-3 bg-[var(--glass-bg)] px-5 md:px-6 py-2.5 md:py-3 rounded-2xl border border-[var(--glass-border)] backdrop-blur-md w-full max-w-xs shadow-inner flex-shrink-0"
+                class="mt-2 md:mt-3 lg:mt-5 flex items-center justify-center gap-2 bg-[var(--glass-bg)] px-4 py-1.5 md:py-2 rounded-xl border border-[var(--glass-border)] backdrop-blur-md w-full max-w-[14rem] shadow-inner flex-shrink-0"
               >
                 <div
                   class="w-2.5 h-2.5 rounded-full {prayerTimes.current_prayer
@@ -373,20 +426,20 @@
 
       <!-- Right Column: Prayer List -->
       <div
-        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 sm:p-5 md:p-6 lg:p-8 rounded-[2rem] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] min-h-[260px] md:min-h-[300px] lg:h-full lg:min-h-0"
+        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-2 sm:p-4 md:p-5 lg:p-6 rounded-[1.5rem] md:rounded-[2rem] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-1 min-h-[0px]"
       >
         <div
           class="absolute right-0 top-0 w-[120%] lg:w-[100%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none -translate-y-1/2"
         ></div>
 
         <h2
-          class="text-xl sm:text-2xl font-bold tracking-tight mb-4 md:mb-6 px-1 md:px-2 text-[var(--text-main)]/90"
+          class="text-lg sm:text-xl font-bold tracking-tight mb-2 md:mb-4 px-1 md:px-2 text-[var(--text-main)]/90 flex-shrink-0"
         >
           Daily Times
         </h2>
 
         <div
-          class="space-y-2 md:space-y-3 relative z-10 flex-1 overflow-y-auto pr-1"
+          class="space-y-1.5 md:space-y-2 relative z-10 flex-1 overflow-y-auto pr-1"
         >
           {#each prayers as prayer, i}
             {@const time = prayerTimes?.[prayer] || "--:--"}
@@ -411,10 +464,10 @@
               {/if}
 
               <div
-                class="flex items-center gap-3 sm:gap-4 md:gap-5 relative z-10 min-w-0"
+                class="flex items-center gap-2 sm:gap-4 md:gap-5 relative z-10 min-w-0"
               >
                 <div
-                  class="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center rounded-xl transition-colors duration-300
+                  class="w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center rounded-xl transition-colors duration-300
                     {isCurrent
                     ? 'bg-[var(--text-main)] text-[var(--on-text-main)] shadow-lg shadow-[var(--text-main)]/20'
                     : 'bg-[var(--text-main)]/5 text-[var(--text-main)]/60 group-hover:bg-[var(--text-main)]/10 group-hover:text-[var(--text-main)] border border-[var(--glass-border)]'}"
@@ -434,10 +487,10 @@
                   </svg>
                 </div>
                 <div>
-                  <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-2 sm:gap-3">
                     <p
-                      class="font-bold capitalize text-base sm:text-lg tracking-wide {isCurrent
-                        ? 'text-[var(--text-main)] drop-shadow-md md:text-xl'
+                      class="font-bold capitalize text-[clamp(0.85rem,3vh,1.1rem)] md:text-[clamp(1rem,3vh,1.25rem)] tracking-wide {isCurrent
+                        ? 'text-[var(--text-main)] drop-shadow-md'
                         : 'text-[var(--text-main)]/80'}"
                     >
                       {prayer}
@@ -457,7 +510,7 @@
                 </div>
               </div>
               <span
-                class="text-lg sm:text-xl font-mono tracking-wider relative z-10 {isCurrent
+                class="text-[clamp(0.85rem,3vh,1.1rem)] sm:text-lg font-mono tracking-wider relative z-10 {isCurrent
                   ? 'font-black text-[var(--text-main)]'
                   : 'font-medium text-[var(--text-main)]/70'}"
                 >{formatPrayerTime(time)}</span
@@ -477,34 +530,29 @@
       "Traditional Arabic", serif;
   }
 
-  @media (max-height: 760px) {
+  @media (max-height: 800px) {
     .praytime-page {
-      gap: 0.6rem;
-      padding-bottom: 0.75rem;
+      gap: 0.5rem;
+      padding-bottom: 0.5rem;
     }
 
     .city-title {
-      font-size: clamp(2.05rem, 7.2vw, 3.1rem);
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
       line-height: 1.02;
     }
 
     .countdown-card {
-      min-height: 170px;
-      padding-top: 0.9rem;
-      padding-bottom: 0.9rem;
+      min-height: 0;
+      padding: 0.75rem;
     }
 
     .ring-visual {
-      width: min(12.5rem, 52vw);
-      height: min(12.5rem, 52vw);
+      width: min(15rem, 40vh);
+      height: min(15rem, 40vh);
     }
 
     .minutes-text {
-      font-size: clamp(2.15rem, 8vw, 3.35rem);
-    }
-
-    .daily-card {
-      min-height: 220px;
+      font-size: clamp(2rem, 7vh, 3.5rem);
     }
   }
 </style>

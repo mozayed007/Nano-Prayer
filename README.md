@@ -1,5 +1,9 @@
 # NanoPrayReminder
 
+![NanoPrayReminder Banner](src-tauri/assets/nanp-prayer-2.png)
+
+> **Credits:** Banner and App Icon Design by [AhmedV19](https://x.com/A7medV19)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
 [![Tauri: v2](https://img.shields.io/badge/Tauri-v2-blue.svg)](https://tauri.app)
@@ -36,12 +40,12 @@
 
 ## 💻 Tech Stack
 
-| Technology | Purpose |
-|------------|---------|
-| Rust workspace (`core` + `src-tauri`) | Backend logic & native shell |
-| Tauri 2 | Desktop application framework |
-| Svelte 5 + SvelteKit + Vite | Frontend UI |
-| Bun (recommended) | Package manager & build tool |
+| Technology                                    | Purpose                                |
+| --------------------------------------------- | -------------------------------------- |
+| Rust workspace (`core` + `src-tauri`)         | Backend logic & native shell           |
+| Tauri 2                                       | Desktop application framework          |
+| Svelte 5 + SvelteKit + Vite                   | Frontend UI                            |
+| Bun (recommended)                             | Package manager & build tool           |
 
 ---
 
@@ -118,6 +122,20 @@ Manual options:
 # Keep debug artifacts, prune release only
 pwsh -NoProfile -File ./scripts/prune-target.ps1 -KeepDebug
 ```
+
+### Complete Clean Build
+
+If your `target` directory has accumulated gigabytes of old compilation artifacts (or you are running into bizarre build errors), you can perform a complete clean build. This will delete all compiled Rust binaries and cached dependencies.
+
+```bash
+# 1. Stop any running dev servers (Ctrl+C)
+# 2. Clear the entire target directory
+cargo clean
+# 3. Rebuild from scratch
+bun run tauri:dev
+```
+
+> **Note:** The first build after a `cargo clean` will take significantly longer because it has to fetch and compile all ~600 Rust dependencies from scratch.
 
 ---
 
@@ -210,30 +228,6 @@ Found a bug or have a feature request? Please open an issue with:
 ## 📄 License
 
 This project is licensed under the **MIT License**.
-
-```
-MIT License
-
-Copyright (c) 2024 Muhammad Z. Ahmed
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
 
 ---
 
