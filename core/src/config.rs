@@ -205,24 +205,12 @@ impl Default for AppConfig {
 
 impl AppConfig {
     pub fn load() -> Result<Self> {
-        let path = std::env::current_exe()
-            .unwrap_or_default()
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .join("config.toml");
-        
-        let config: Self = confy::load_path(&path)?;
+        let config: Self = confy::load("nano-pray-reminder", "config")?;
         Ok(config)
     }
 
     pub fn save(&self) -> Result<()> {
-        let path = std::env::current_exe()
-            .unwrap_or_default()
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .join("config.toml");
-            
-        confy::store_path(&path, self)?;
+        confy::store("nano-pray-reminder", "config", self)?;
         Ok(())
     }
 

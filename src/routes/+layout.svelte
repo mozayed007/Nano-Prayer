@@ -160,6 +160,12 @@
       </button>
     </div>
   </div>
+{:else if ($page.url.pathname as string) === "/alert"}
+  <main
+    class="w-screen h-screen overflow-hidden overflow-y-hidden text-[var(--text-main)] {$theme}"
+  >
+    {@render children()}
+  </main>
 {:else}
   <div
     class="h-dvh min-h-0 text-[var(--text-main)] transition-colors duration-1000 {$theme ===
@@ -182,7 +188,9 @@
       >
         <a
           href="/"
-          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 relative group {$page
+          aria-label="Praytime Dashboard"
+          aria-current={$page.url.pathname === "/" ? "page" : undefined}
+          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none relative group {$page
             .url.pathname === '/'
             ? 'text-[var(--text-main)] bg-[var(--text-main)]/20 shadow-md'
             : 'text-[var(--text-muted)]'}"
@@ -202,7 +210,11 @@
         </a>
         <a
           href="/schedule"
-          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 relative group {$page.url.pathname.startsWith(
+          aria-label="Monthly Schedule"
+          aria-current={$page.url.pathname.startsWith("/schedule")
+            ? "page"
+            : undefined}
+          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none relative group {$page.url.pathname.startsWith(
             '/schedule',
           )
             ? 'text-[var(--text-main)] bg-[var(--text-main)]/20 shadow-md'
@@ -223,7 +235,11 @@
         </a>
         <a
           href="/statistics"
-          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 relative group {$page.url.pathname.startsWith(
+          aria-label="Prayer Statistics"
+          aria-current={$page.url.pathname.startsWith("/statistics")
+            ? "page"
+            : undefined}
+          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none relative group {$page.url.pathname.startsWith(
             '/statistics',
           )
             ? 'text-[var(--text-main)] bg-[var(--text-main)]/20 shadow-md'
@@ -244,7 +260,11 @@
         </a>
         <a
           href="/settings"
-          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 relative group {$page.url.pathname.startsWith(
+          aria-label="Application Settings"
+          aria-current={$page.url.pathname.startsWith("/settings")
+            ? "page"
+            : undefined}
+          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none relative group {$page.url.pathname.startsWith(
             '/settings',
           )
             ? 'text-[var(--text-main)] bg-[var(--text-main)]/20 shadow-md'
@@ -265,7 +285,11 @@
         </a>
         <a
           href="/qibla"
-          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 relative group {$page.url.pathname.startsWith(
+          aria-label="Qibla Compass"
+          aria-current={$page.url.pathname.startsWith("/qibla")
+            ? "page"
+            : undefined}
+          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none relative group {$page.url.pathname.startsWith(
             '/qibla',
           )
             ? 'text-[var(--text-main)] bg-[var(--text-main)]/20 shadow-md'
@@ -286,7 +310,11 @@
         </a>
         <a
           href="/about"
-          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 relative group {$page.url.pathname.startsWith(
+          aria-label="About the App"
+          aria-current={$page.url.pathname.startsWith("/about")
+            ? "page"
+            : undefined}
+          class="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-2.5 rounded-xl transition-all duration-300 hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/10 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none relative group {$page.url.pathname.startsWith(
             '/about',
           )
             ? 'text-[var(--text-main)] bg-[var(--text-main)]/20 shadow-md'

@@ -18,7 +18,10 @@ export interface SavedLocation {
 export interface ReminderConfig {
   enabled: boolean;
   minutes_before: number;
+  play_sound_before: boolean;
   play_adhan: boolean;
+  minutes_after: number;
+  play_sound_after: boolean;
   custom_sound: string | null;
   volume: number;
   show_notification: boolean;
@@ -39,9 +42,9 @@ export interface NotificationSettings {
 }
 
 export interface AppearanceSettings {
-  theme: 'light' | 'dark' | 'system';
+  theme: "light" | "dark" | "system";
   accent_color: string;
-  clock_format: 'hour12' | 'hour24';
+  clock_format: "hour12" | "hour24";
   show_arabic: boolean;
   animations_enabled: boolean;
   font_scale: number;
@@ -81,3 +84,4 @@ export interface AppConfig {
   advanced: AdvancedSettings;
   last_backup_path: string | null;
 }
+

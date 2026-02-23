@@ -233,10 +233,12 @@
   <div
     class="flex items-center justify-center h-full min-h-[220px]"
     transition:fade
+    aria-live="polite"
+    role="status"
   >
     <div class="glass-card p-8 rounded-2xl">
       <p class="text-center text-lg text-[var(--text-main)]">
-        Loading prayer times...
+        Loading prayer times…
       </p>
     </div>
   </div>
@@ -244,6 +246,8 @@
   <div
     class="flex items-center justify-center h-full min-h-[220px]"
     transition:fade
+    aria-live="polite"
+    role="alert"
   >
     <div class="glass-card p-8 rounded-2xl border-red-500 border">
       <p class="text-center text-red-300 mb-4">Error: {error}</p>
@@ -264,9 +268,10 @@
     <header
       class="flex flex-col gap-3 md:gap-4 md:flex-row md:justify-between md:items-end px-3 sm:px-4 md:px-8 relative mb-1 md:mb-2 flex-shrink-0"
     >
-      <div class="z-10">
+      <div class="z-10 min-w-0 flex-1">
         <h1
-          class="city-title text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-sm"
+          class="city-title text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-sm truncate"
+          title={prayerTimes?.location_name || "Location"}
         >
           {prayerTimes?.location_name || "Location"}
         </h1>
@@ -304,7 +309,7 @@
       >
         <!-- Countdown Card -->
         <div
-          class="countdown-card backdrop-blur-3xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-3 md:p-5 lg:p-6 rounded-[1.5rem] md:rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden flex-1 min-h-[160px] shadow-[0_8px_32px_var(--glass-shadow)] group"
+          class="countdown-card backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-3 md:p-5 lg:p-6 rounded-[1.5rem] md:rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden flex-1 min-h-[160px] shadow-[0_8px_32px_var(--glass-shadow)] group"
         >
           <div
             class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] md:w-[120%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_70%)] opacity-50 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none clamp-size"
@@ -325,13 +330,16 @@
 
             {#if prayerTimes?.next_prayer && prayerTimes?.minutes_to_next !== null}
               <div
-                class="relative flex items-center justify-center transition-transform duration-1000 ease-in-out"
-                style="transform: rotate({rotationDegrees}deg) scale(1);"
+                class="relative flex items-center justify-center"
+                role="timer"
+                aria-label="{prayerTimes.minutes_to_next} minutes until {prayerTimes.next_prayer}"
               >
                 <!-- Enhanced Progress Ring / Circular Hourglass -->
                 <svg
-                  class="ring-visual w-[60vw] sm:w-[50vw] md:w-[45vw] lg:w-[40vw] max-w-[340px] aspect-square drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] max-h-[60vh] p-2 sm:p-4"
+                  class="ring-visual w-[55vw] sm:w-[50vw] md:w-[45vw] lg:w-[40vw] max-w-[340px] aspect-square drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] max-h-[45vh] lg:max-h-[60vh] p-2 sm:p-4 transition-transform duration-1000 ease-in-out"
+                  style="transform: rotate({rotationDegrees}deg) scale(1);"
                   viewBox="0 0 288 288"
+                  aria-hidden="true"
                 >
                   <defs>
                     <linearGradient
@@ -392,6 +400,7 @@
 
                 <div
                   class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+                  aria-hidden="true"
                 >
                   <span
                     class="minutes-text text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-lg"
@@ -439,7 +448,9 @@
         </h2>
 
         <div
-          class="space-y-1.5 md:space-y-2 relative z-10 flex-1 overflow-y-auto pr-1"
+          class="space-y-1 sm:space-y-1.5 md:space-y-2 relative z-10 flex-1 flex flex-col justify-around"
+          role="list"
+          aria-label="Daily prayer times"
         >
           {#each prayers as prayer, i}
             {@const time = prayerTimes?.[prayer] || "--:--"}
@@ -448,13 +459,14 @@
             {@const isNext = prayerTimes?.next_prayer?.toLowerCase() === prayer}
 
             <div
-              class="flex items-center justify-between p-2.5 sm:p-3 md:p-4 rounded-2xl transition-all duration-500 ease-out group relative overflow-hidden min-h-0
+              class="flex items-center justify-between p-2 sm:p-2.5 md:p-4 rounded-2xl transition-all duration-500 ease-out group relative overflow-hidden min-h-0 flex-1
                  {isCurrent
                 ? 'bg-[var(--text-main)]/10 shadow-[0_4px_24px_var(--glass-shadow)] border border-[var(--glass-border)] scale-[1.02]'
                 : 'bg-[var(--text-main)]/5 border border-transparent hover:bg-[var(--text-main)]/10 hover:border-[var(--glass-border)]'} 
                  {isNext ? 'bg-blue-500/10 border-blue-500/30' : ''}"
               style="transition-delay: {i * 40}ms"
               in:fly={{ x: 20, duration: 600, delay: i * 80 }}
+              role="listitem"
             >
               <!-- Inner glow for current prayer -->
               {#if isCurrent}
@@ -482,14 +494,15 @@
                     stroke-width="2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
+                    aria-hidden="true"
                   >
                     <path d={prayerIcons[prayer]} />
                   </svg>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <div class="flex items-center gap-2 sm:gap-3">
                     <p
-                      class="font-bold capitalize text-[clamp(0.85rem,3vh,1.1rem)] md:text-[clamp(1rem,3vh,1.25rem)] tracking-wide {isCurrent
+                      class="font-bold capitalize text-[clamp(0.8rem,2.5vh,1.1rem)] md:text-[clamp(1rem,3vh,1.25rem)] tracking-wide truncate {isCurrent
                         ? 'text-[var(--text-main)] drop-shadow-md'
                         : 'text-[var(--text-main)]/80'}"
                     >
@@ -510,7 +523,7 @@
                 </div>
               </div>
               <span
-                class="text-[clamp(0.85rem,3vh,1.1rem)] sm:text-lg font-mono tracking-wider relative z-10 {isCurrent
+                class="text-[clamp(0.8rem,2.5vh,1.1rem)] sm:text-lg font-mono tracking-wider relative z-10 whitespace-nowrap {isCurrent
                   ? 'font-black text-[var(--text-main)]'
                   : 'font-medium text-[var(--text-main)]/70'}"
                 >{formatPrayerTime(time)}</span

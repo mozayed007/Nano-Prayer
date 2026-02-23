@@ -1,9 +1,9 @@
+use rodio::{Decoder, OutputStream, Sink};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
-use rodio::{Decoder, OutputStream, Sink};
 
 pub enum AudioCommand {
     Play(PathBuf, f32),
@@ -30,7 +30,7 @@ impl AudioPlayer {
                     return; // Exit audio thread, commands will be ignored
                 }
             };
-            
+
             let sink = match Sink::try_new(&stream_handle) {
                 Ok(s) => s,
                 Err(e) => {
@@ -45,12 +45,12 @@ impl AudioPlayer {
                         if !sink.empty() {
                             sink.stop();
                         }
-                        
+
                         // We need to create a new sink or append to existing one?
                         // rodio::Sink::stop() clears the queue.
                         // But let's try to reuse the sink if possible, or just create new one if needed?
                         // Actually, Sink is reusable.
-                        
+
                         sink.set_volume(volume);
 
                         match File::open(&path) {
@@ -63,14 +63,14 @@ impl AudioPlayer {
                             }
                             Err(e) => eprintln!("Error opening audio file: {}", e),
                         }
-                        
+
                         sink.play();
                     }
                     AudioCommand::PlayEmbedded(bytes, volume) => {
                         if !sink.empty() {
                             sink.stop();
                         }
-                        
+
                         sink.set_volume(volume);
 
                         let cursor = std::io::Cursor::new(bytes);
@@ -78,7 +78,7 @@ impl AudioPlayer {
                             Ok(source) => sink.append(source),
                             Err(e) => eprintln!("Error decoding embedded audio: {}", e),
                         }
-                        
+
                         sink.play();
                     }
                     AudioCommand::Pause => {
