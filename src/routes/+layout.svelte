@@ -181,7 +181,7 @@
     ></div>
 
     <div
-      class="w-full flex justify-center sticky top-2 md:top-4 z-50 px-2 sm:px-4 pointer-events-none"
+      class="w-full flex justify-center absolute top-2 md:top-4 left-0 z-50 px-2 sm:px-4 pointer-events-none"
     >
       <nav
         class="app-nav pointer-events-auto backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl px-2 py-2 flex justify-center items-center gap-1 shadow-[0_8px_32px_var(--glass-shadow)] max-w-full overflow-x-auto whitespace-nowrap"
@@ -337,7 +337,7 @@
     </div>
 
     <main
-      class="flex-1 min-h-0 w-full mx-auto relative z-10 pt-2 md:pt-4 pb-3 px-2 sm:px-4"
+      class="flex-1 min-h-0 w-full mx-auto relative z-10 pt-[4.5rem] md:pt-20 pb-3 px-2 sm:px-4"
     >
       {@render children()}
     </main>

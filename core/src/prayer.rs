@@ -149,13 +149,31 @@ impl PrayerCalculator {
             self.build_info(Prayer::Maghrib, st.time(SalahPrayer::Maghrib), now),
             self.build_info(Prayer::Isha, st.time(SalahPrayer::Isha), now),
         ];
-        let next_idx = prayers.iter().position(|p| !p.has_passed);
-        let next_prayer = next_idx.map(|i| prayers[i].prayer);
-        let mins = next_idx.map(|i| prayers[i].minutes_until).flatten();
+        let mut next_idx = prayers.iter().position(|p| !p.has_passed);
+        let mut next_prayer = next_idx.map(|i| prayers[i].prayer);
+        let mut mins = next_idx.and_then(|i| prayers[i].minutes_until);
+
+        if next_prayer.is_none() {
+            // It is past Isha, next prayer is Fajr tomorrow
+            let tomorrow = date + chrono::Duration::days(1);
+            if let Ok(st_tomorrow) = PrayerSchedule::new()
+                .on(tomorrow)
+                .for_location(coords)
+                .with_configuration(config)
+                .calculate() 
+            {
+                let time_utc = st_tomorrow.time(SalahPrayer::Fajr);
+                let time_local = time_utc.with_timezone(&Local);
+                mins = Some((time_local.signed_duration_since(now)).num_minutes() as i32);
+            }
+            next_prayer = Some(Prayer::Fajr);
+        }
+
         let current = next_prayer.map(|p| match p {
             Prayer::Fajr => Prayer::Isha, Prayer::Sunrise => Prayer::Fajr, Prayer::Dhuhr => Prayer::Sunrise,
             Prayer::Asr => Prayer::Dhuhr, Prayer::Maghrib => Prayer::Asr, Prayer::Isha => Prayer::Maghrib,
         });
+        
         Ok(PrayerTimes { date, location_name: name, prayers, current_prayer: current, next_prayer, minutes_to_next: mins })
     }
 

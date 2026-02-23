@@ -118,60 +118,74 @@ pub fn to_arabic_numerals(n: u32) -> String {
 }
 
 /// Convert Gregorian date to Hijri date
-/// Based on the Kuwaiti algorithm (similar to Umm al-Qura)
+/// Uses Tabular Islamic Calendar (highly deterministic fallback for Umm al-Qura)
 pub fn gregorian_to_hijri(date: NaiveDate) -> HijriDate {
-    let year = date.year();
-    let month = date.month() as i32;
-    let day = date.day() as i32;
+    // Epoch is JDN 1948439 (July 16, 622)
+    let epoch = NaiveDate::from_ymd_opt(622, 7, 16).unwrap();
+    let days_since_epoch = date.signed_duration_since(epoch).num_days();
 
-    // Calculate Julian Day Number
-    let a = (14 - month) / 12;
-    let y = year + 4800 - a;
-    let m = month + 12 * a - 3;
-    let jdn = day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045;
+    if days_since_epoch < 0 {
+        return HijriDate { year: 1, month: 1, day: 1 };
+    }
 
-    // Convert JDN to Hijri using Kuwaiti algorithm
-    let l = jdn - 1948440 + 10632;
-    let n = (l as f64 / 10631.0).floor() as i32;
-    let l2 = l - 10631 * n + 354;
-    let j = ((l2 - 1) as f64 / 355.0).floor() as i32;
-    let l3 = l2 - 355 * j;
+    // 30-year cycle has 10631 days.
+    let cycles = days_since_epoch / 10631;
+    let days_in_current_cycle = days_since_epoch % 10631;
     
-    let hijri_day = if l3 == 0 { 30 } else { l3 as u8 };
-    let hijri_month = if j == 11 { 12 } else { (j + 1) as u8 };
-    let hijri_year = 30 * n + j - 4230;
-
+    let mut year_in_cycle = 1;
+    let mut remaining_days = days_in_current_cycle;
+    
+    // Lengths of years in 30-year cycle (leap years: 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29)
+    for y in 1..=30 {
+        let is_leap = [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&y);
+        let year_len = if is_leap { 355 } else { 354 };
+        if remaining_days < year_len {
+            year_in_cycle = y;
+            break;
+        }
+        remaining_days -= year_len;
+    }
+    
+    let mut month = 1;
+    let mut day = remaining_days + 1;
+    
+    for m in 1..=12 {
+        let month_len = if m % 2 != 0 { 30 } else if m == 12 && [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&year_in_cycle) { 30 } else { 29 };
+        if day <= month_len {
+            month = m;
+            break;
+        }
+        day -= month_len;
+    }
+    
+    let hijri_year = (cycles * 30) + year_in_cycle as i64;
+    
     HijriDate {
-        year: hijri_year,
-        month: hijri_month,
-        day: hijri_day,
+        year: hijri_year as i32,
+        month: month as u8,
+        day: day as u8,
     }
 }
 
 /// Convert Hijri date to Gregorian date
 pub fn hijri_to_gregorian(hijri: HijriDate) -> NaiveDate {
-    // Convert Hijri to Julian Day Number
-    let n = (hijri.year as f64 / 30.0).floor() as i32;
-    let l = hijri.year - 30 * n;
-    let j = ((11 * hijri.month as i32 + 3) / 30) as i32;
-    let l2 = 354 * l + (3 * l + 1) / 4 + 29 * hijri.month as i32 + j + hijri.day as i32 - 385;
+    let mut days = (hijri.year as i64 - 1) / 30 * 10631;
+    let year_in_cycle = (hijri.year - 1) % 30 + 1;
     
-    let jdn = l2 + 1948440 + 10631 * n;
-
-    // Convert JDN to Gregorian
-    let a = jdn + 32044;
-    let b = ((4 * a + 3) as f64 / 146097.0).floor() as i32;
-    let c = a - 146097 * b / 4;
-    let d = ((4 * c + 3) as f64 / 1461.0).floor() as i32;
-    let e = c - 1461 * d / 4;
-    let m = ((5 * e + 2) as f64 / 153.0).floor() as i32;
-
-    let day = (e - (153 * m + 2) / 5 + 1) as u32;
-    let month = (m + 3 - 12 * (m / 10)) as u32;
-    let year = 100 * b + d - 4800 + (m + 9) / 12;
-
-    NaiveDate::from_ymd_opt(year, month, day)
-        .unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap())
+    for y in 1..year_in_cycle {
+        let is_leap = [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&y);
+        days += if is_leap { 355 } else { 354 };
+    }
+    
+    for m in 1..hijri.month {
+        let month_len = if m % 2 != 0 { 30 } else if m == 12 && [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&year_in_cycle) { 30 } else { 29 };
+        days += month_len as i64;
+    }
+    
+    days += hijri.day as i64 - 1;
+    
+    let epoch = NaiveDate::from_ymd_opt(622, 7, 16).unwrap();
+    epoch + chrono::Duration::days(days)
 }
 
 /// Apply offset to Hijri date (for moon sighting adjustments)
