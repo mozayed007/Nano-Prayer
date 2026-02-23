@@ -120,8 +120,9 @@ pub fn to_arabic_numerals(n: u32) -> String {
 /// Convert Gregorian date to Hijri date
 /// Uses Tabular Islamic Calendar (highly deterministic fallback for Umm al-Qura)
 pub fn gregorian_to_hijri(date: NaiveDate) -> HijriDate {
-    // Epoch is JDN 1948439 (July 16, 622)
-    let epoch = NaiveDate::from_ymd_opt(622, 7, 16).unwrap();
+    // Epoch: 1 Muharram 1 AH = July 19, 622 CE (proleptic Gregorian)
+    // Note: July 16, 622 is the Julian date; chrono uses proleptic Gregorian (+3 day offset)
+    let epoch = NaiveDate::from_ymd_opt(622, 7, 19).unwrap();
     let days_since_epoch = date.signed_duration_since(epoch).num_days();
 
     if days_since_epoch < 0 {
@@ -184,7 +185,7 @@ pub fn hijri_to_gregorian(hijri: HijriDate) -> NaiveDate {
     
     days += hijri.day as i64 - 1;
     
-    let epoch = NaiveDate::from_ymd_opt(622, 7, 16).unwrap();
+    let epoch = NaiveDate::from_ymd_opt(622, 7, 19).unwrap();
     epoch + chrono::Duration::days(days)
 }
 
