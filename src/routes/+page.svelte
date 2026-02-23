@@ -261,22 +261,22 @@
   </div>
 {:else}
   <div
-    class="praytime-page flex flex-col gap-1 md:gap-2 h-full min-h-0 max-w-6xl mx-auto w-full pt-1 pb-1 md:pb-2 overflow-hidden"
+    class="praytime-page flex flex-col gap-[clamp(0.25rem,1.5vmin,0.5rem)] h-full min-h-0 max-w-6xl mx-auto w-full pt-[clamp(0.25rem,1vmin,0.5rem)] pb-[clamp(0.25rem,1.5vmin,0.5rem)] overflow-hidden"
     in:fade={{ duration: 500 }}
   >
     <!-- Header -->
     <header
-      class="flex flex-col gap-2 md:gap-3 md:flex-row md:justify-between md:items-end px-3 sm:px-4 md:px-8 relative mb-1 flex-shrink-0"
+      class="flex flex-col md:flex-row justify-between items-end gap-[clamp(0.5rem,1.5vmin,1.25rem)] px-[clamp(0.75rem,3vmin,2rem)] relative mb-[clamp(0.25rem,1.5vmin,0.5rem)] flex-shrink-0"
     >
-      <div class="z-10 min-w-0 flex-1">
+      <div class="z-10 min-w-0 flex-1 w-full text-center md:text-left">
         <h1
-          class="city-title text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-[var(--text-main)] drop-shadow-sm truncate"
+          class="city-title text-[clamp(1.5rem,6vmin,3rem)] font-black tracking-tighter text-[var(--text-main)] drop-shadow-sm truncate"
           title={prayerTimes?.location_name || "Location"}
         >
           {prayerTimes?.location_name || "Location"}
         </h1>
         <p
-          class="text-[var(--text-muted)] mt-1 font-medium tracking-wider uppercase text-[10px] md:text-xs"
+          class="text-[var(--text-muted)] mt-[clamp(0.125rem,0.5vmin,0.25rem)] font-medium tracking-wider uppercase text-[clamp(0.6rem,1.8vmin,0.75rem)]"
         >
           {currentTime.toLocaleDateString("en-US", {
             weekday: "long",
@@ -286,28 +286,32 @@
           })}
         </p>
       </div>
-      <div class="text-right z-10 hidden md:block md:self-start lg:self-auto">
+      <div
+        class="text-center md:text-right w-full md:w-auto z-10 hidden sm:block self-start lg:self-auto"
+      >
         <p
-          class="text-lg lg:text-2xl font-bold tracking-tight text-[var(--text-main)]/90"
+          class="text-[clamp(1rem,3vmin,1.5rem)] font-bold tracking-tight text-[var(--text-main)]/90"
         >
           {hijriDate?.formatted}
         </p>
         <p
-          class="text-[var(--text-muted)] font-arabic text-base lg:text-xl mt-1"
+          class="text-[var(--text-muted)] font-arabic text-[clamp(0.875rem,2.5vmin,1.25rem)] mt-[clamp(0.125rem,0.5vmin,0.25rem)]"
         >
           {hijriDate?.formatted_arabic}
         </p>
       </div>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-4 flex-1 min-h-0">
+    <div
+      class="grid grid-cols-1 lg:grid-cols-12 gap-[clamp(0.5rem,2vmin,1rem)] flex-1 min-h-0"
+    >
       <!-- Left Column: Timer & Info -->
       <div
-        class="flex flex-col gap-2 md:gap-3 lg:col-span-6 xl:col-span-7 h-full min-h-0"
+        class="flex flex-col gap-[clamp(0.5rem,1.5vmin,0.75rem)] lg:col-span-6 xl:col-span-7 h-full min-h-0"
       >
         <!-- Countdown Card -->
         <div
-          class="countdown-card backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-2 md:p-4 lg:p-5 rounded-[1.5rem] md:rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden flex-1 min-h-0 shadow-[0_8px_32px_var(--glass-shadow)] group"
+          class="countdown-card backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,3vmin,1.25rem)] rounded-[clamp(1rem,4vmin,2rem)] flex flex-col items-center justify-center relative overflow-hidden flex-1 min-h-0 shadow-[0_8px_32px_var(--glass-shadow)] group"
         >
           <div
             class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] md:w-[120%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_70%)] opacity-50 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none clamp-size"
@@ -317,10 +321,10 @@
             class="relative z-10 text-center flex flex-col items-center w-full"
           >
             <div
-              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-4 sm:px-6 py-1 sm:py-1.5 rounded-full backdrop-blur-md mb-1 md:mb-2 shadow-inner"
+              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-[clamp(0.75rem,4vmin,1.5rem)] py-[clamp(0.25rem,1.5vmin,0.5rem)] rounded-[clamp(1rem,4vmin,2rem)] backdrop-blur-md mb-[clamp(0.25rem,1.5vmin,0.5rem)] shadow-inner"
             >
               <span
-                class="text-sm sm:text-base md:text-lg font-mono font-medium tracking-widest text-[var(--text-main)]/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                class="text-[clamp(0.75rem,3vmin,1.125rem)] font-mono font-medium tracking-widest text-[var(--text-main)]/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
               >
                 {formatTime(currentTime)}
               </span>
@@ -328,13 +332,13 @@
 
             {#if prayerTimes?.next_prayer && prayerTimes?.minutes_to_next !== null}
               <div
-                class="relative flex items-center justify-center"
+                class="relative flex items-center justify-center min-h-0 flex-1 max-h-[40vh]"
                 role="timer"
                 aria-label="{prayerTimes.minutes_to_next} minutes until {prayerTimes.next_prayer}"
               >
                 <!-- Enhanced Progress Ring / Circular Hourglass -->
                 <svg
-                  class="ring-visual w-[min(50vw,35vh)] max-w-[280px] aspect-square drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] p-1 sm:p-2 transition-transform duration-1000 ease-in-out"
+                  class="ring-visual w-[clamp(8rem,45vmin,18rem)] max-w-full aspect-square drop-shadow-[0_0_30px_rgba(96,165,250,0.15)] p-[clamp(0.25rem,1vmin,0.5rem)] transition-transform duration-1000 ease-in-out"
                   style="transform: rotate({rotationDegrees}deg) scale(1);"
                   viewBox="0 0 288 288"
                   aria-hidden="true"
@@ -401,25 +405,27 @@
                   aria-hidden="true"
                 >
                   <span
-                    class="minutes-text text-[clamp(1.5rem,5vh,3.5rem)] font-black tracking-tighter text-[var(--text-main)] drop-shadow-lg"
+                    class="minutes-text text-[clamp(1.5rem,8vmin,3.5rem)] font-black tracking-tighter text-[var(--text-main)] drop-shadow-lg leading-none"
                     >{formatMinutes(prayerTimes.minutes_to_next)}</span
                   >
                   <span
-                    class="text-[var(--text-muted)] text-[9px] sm:text-[10px] md:text-xs uppercase tracking-[0.2em] mt-1 font-bold"
+                    class="text-[var(--text-muted)] text-[clamp(0.5rem,1.8vmin,0.75rem)] uppercase tracking-[0.2em] mt-[clamp(0.125rem,0.5vmin,0.25rem)] font-bold"
                     >Until {prayerTimes.next_prayer}</span
                   >
                 </div>
               </div>
 
               <div
-                class="mt-1 md:mt-2 flex items-center justify-center gap-2 bg-[var(--glass-bg)] px-3 py-1 md:py-1.5 rounded-xl border border-[var(--glass-border)] backdrop-blur-md w-full max-w-[14rem] shadow-inner flex-shrink-0"
+                class="mt-[clamp(0.25rem,1.5vmin,0.5rem)] flex items-center justify-center gap-[clamp(0.25rem,1vmin,0.5rem)] bg-[var(--glass-bg)] px-[clamp(0.5rem,3vmin,0.75rem)] py-[clamp(0.25rem,1.2vmin,0.5rem)] rounded-[clamp(0.5rem,2vmin,0.75rem)] border border-[var(--glass-border)] backdrop-blur-md w-full max-w-[14rem] shadow-inner flex-shrink-0"
               >
                 <div
-                  class="w-2.5 h-2.5 rounded-full {prayerTimes.current_prayer
+                  class="w-[clamp(0.4rem,1.5vmin,0.6rem)] h-[clamp(0.4rem,1.5vmin,0.6rem)] rounded-full {prayerTimes.current_prayer
                     ? 'bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]'
                     : 'bg-[var(--text-main)]/30'}"
                 ></div>
-                <p class="text-[var(--text-muted)] font-medium tracking-wide">
+                <p
+                  class="text-[var(--text-muted)] font-medium tracking-wide text-[clamp(0.7rem,2.2vmin,0.875rem)] w-full"
+                >
                   Current: <span
                     class="text-[var(--text-main)] font-bold capitalize"
                     >{prayerTimes.current_prayer || "None"}</span
@@ -433,20 +439,20 @@
 
       <!-- Right Column: Prayer List -->
       <div
-        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-2 sm:p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-1 min-h-0"
+        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,3vmin,1rem)] rounded-[clamp(1rem,4vmin,2rem)] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-1 min-h-0"
       >
         <div
           class="absolute right-0 top-0 w-[120%] lg:w-[100%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none -translate-y-1/2"
         ></div>
 
         <h2
-          class="text-base sm:text-lg font-bold tracking-tight mb-1 md:mb-2 px-1 md:px-2 text-[var(--text-main)]/90 flex-shrink-0"
+          class="text-[clamp(0.875rem,3vmin,1.125rem)] font-bold tracking-tight mb-[clamp(0.25rem,1.5vmin,0.5rem)] px-[clamp(0.25rem,1vmin,0.5rem)] text-[var(--text-main)]/90 flex-shrink-0"
         >
           Daily Times
         </h2>
 
         <div
-          class="space-y-0.5 sm:space-y-1 relative z-10 flex-1 flex flex-col justify-around"
+          class="space-y-[clamp(0.125rem,0.5vmin,0.25rem)] relative z-10 flex-1 flex flex-col justify-around"
           role="list"
           aria-label="Daily prayer times"
         >
@@ -457,7 +463,7 @@
             {@const isNext = prayerTimes?.next_prayer?.toLowerCase() === prayer}
 
             <div
-              class="flex items-center justify-between p-1.5 sm:p-2 md:p-3 rounded-xl transition-all duration-500 ease-out group relative overflow-hidden min-h-0 flex-1
+              class="flex items-center justify-between p-[clamp(0.375rem,1.5vmin,0.75rem)] rounded-[clamp(0.5rem,2vmin,0.75rem)] transition-all duration-500 ease-out group relative overflow-hidden min-h-0 flex-1
                  {isCurrent
                 ? 'bg-[var(--text-main)]/10 shadow-[0_4px_24px_var(--glass-shadow)] border border-[var(--glass-border)] scale-[1.02]'
                 : 'bg-[var(--text-main)]/5 border border-transparent hover:bg-[var(--text-main)]/10 hover:border-[var(--glass-border)]'} 
@@ -474,18 +480,19 @@
               {/if}
 
               <div
-                class="flex items-center gap-2 sm:gap-4 md:gap-5 relative z-10 min-w-0"
+                class="flex items-center gap-[clamp(0.5rem,2.5vmin,1.25rem)] relative z-10 min-w-0"
               >
                 <div
-                  class="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg transition-colors duration-300
+                  class="w-[clamp(1.5rem,5.5vmin,2.5rem)] h-[clamp(1.5rem,5.5vmin,2.5rem)] flex items-center justify-center rounded-lg transition-colors duration-300
                     {isCurrent
                     ? 'bg-[var(--text-main)] text-[var(--on-text-main)] shadow-lg shadow-[var(--text-main)]/20'
                     : 'bg-[var(--text-main)]/5 text-[var(--text-main)]/60 group-hover:bg-[var(--text-main)]/10 group-hover:text-[var(--text-main)] border border-[var(--glass-border)]'}"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
+                    width="100%"
+                    height="100%"
+                    class="w-[50%] h-[50%]"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -498,9 +505,11 @@
                   </svg>
                 </div>
                 <div class="min-w-0">
-                  <div class="flex items-center gap-2 sm:gap-3">
+                  <div
+                    class="flex items-center gap-[clamp(0.25rem,1vmin,0.75rem)]"
+                  >
                     <p
-                      class="font-bold capitalize text-[clamp(0.75rem,2vh,0.95rem)] md:text-[clamp(0.85rem,2.5vh,1.1rem)] tracking-wide truncate {isCurrent
+                      class="font-bold capitalize text-[clamp(0.75rem,2.8vmin,1.1rem)] tracking-wide truncate {isCurrent
                         ? 'text-[var(--text-main)] drop-shadow-md'
                         : 'text-[var(--text-main)]/80'}"
                     >
@@ -508,12 +517,12 @@
                     </p>
                     {#if isCurrent}
                       <span
-                        class="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 px-2 py-0.5 rounded-full ring-1 ring-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                        class="text-[clamp(0.5rem,1.5vmin,0.625rem)] font-bold uppercase tracking-wider bg-emerald-500/20 px-[clamp(0.25rem,1vmin,0.5rem)] py-[clamp(0.125rem,0.5vmin,0.125rem)] rounded-full ring-1 ring-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                         >Now</span
                       >
                     {:else if isNext}
                       <span
-                        class="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/30 px-2 py-0.5 rounded-full text-indigo-200 ring-1 ring-indigo-500/50"
+                        class="text-[clamp(0.5rem,1.5vmin,0.625rem)] font-bold uppercase tracking-wider bg-indigo-500/30 px-[clamp(0.25rem,1vmin,0.5rem)] py-[clamp(0.125rem,0.5vmin,0.125rem)] rounded-full text-indigo-200 ring-1 ring-indigo-500/50"
                         >Next</span
                       >
                     {/if}
@@ -521,7 +530,7 @@
                 </div>
               </div>
               <span
-                class="text-[clamp(0.75rem,2vh,0.95rem)] sm:text-base font-mono tracking-wider relative z-10 whitespace-nowrap {isCurrent
+                class="text-[clamp(0.7rem,2.8vmin,1rem)] font-mono tracking-wider relative z-10 whitespace-nowrap {isCurrent
                   ? 'font-black text-[var(--text-main)]'
                   : 'font-medium text-[var(--text-main)]/70'}"
                 >{formatPrayerTime(time)}</span
@@ -539,31 +548,5 @@
   .font-arabic {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, "Amiri",
       "Traditional Arabic", serif;
-  }
-
-  @media (max-height: 700px) {
-    .praytime-page {
-      gap: 0.25rem;
-      padding-bottom: 0.25rem;
-    }
-
-    .city-title {
-      font-size: clamp(1.4rem, 4vw, 2rem);
-      line-height: 1;
-    }
-
-    .countdown-card {
-      min-height: 0;
-      padding: 0.5rem;
-    }
-
-    .ring-visual {
-      width: min(12rem, 30vh);
-      height: min(12rem, 30vh);
-    }
-
-    .minutes-text {
-      font-size: clamp(1.2rem, 5vh, 2rem);
-    }
   }
 </style>
