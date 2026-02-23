@@ -1,6 +1,6 @@
-
-Algorithm       Hash
----------       ----                                       
-SHA256          6EB15FFE42C41593243C47EC7BA2630B639A5C3830…
-SHA256          765A85192C8DF4C2390C0173F0EE159872517864F2…
-
+SHA256 hash of .\target\release\bundle\nsis\NanoPrayReminder_0.1.1_x64-setup.exe:
+4688d2c0e472465510bd54d0674c447fae1491ca299fcda10b0559c6a2a81aef
+CertUtil: -hashfile command completed successfully.
+SHA256 hash of .\target\release\nano-pray-reminder.exe:
+43a6a5de7775bb1f85e40ef1443a014368d6474a322a2c85af731e44007e5ac2
+CertUtil: -hashfile command completed successfully.
