@@ -167,7 +167,7 @@
       </h3>
       <p class="text-sm text-[var(--text-main)]/80">
         Banner and Icon Design by <a
-          href="https://github.com/AhmedV19"
+          href="https://x.com/A7medV19"
           target="_blank"
           rel="noopener noreferrer"
           class="font-medium hover:text-blue-400 hover:underline transition-colors"
