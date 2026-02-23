@@ -149,14 +149,48 @@
     isFetching = true;
 
     try {
-      const [times, hijri] = await Promise.all([
-        invoke<PrayerTimes>("get_prayer_times", {}),
-        invoke<HijriDate>("get_hijri_date", {}),
-      ]);
+      // Fetch Prayer Times from Rust Backend
+      const times = await invoke<PrayerTimes>("get_prayer_times", {});
       prayerTimes = times;
-      hijriDate = hijri;
-      error = null;
       $currentPrayer = times.next_prayer;
+
+      // Try fetching Aladhan Hijri Date online first
+      let hijriDateData: HijriDate | null = null;
+      try {
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, "0");
+        const mm = String(today.getMonth() + 1).padStart(2, "0");
+        const yyyy = today.getFullYear();
+
+        const response = await fetch(
+          `http://api.aladhan.com/v1/gToH/${dd}-${mm}-${yyyy}`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const hd = data.data.hijri;
+          hijriDateData = {
+            year: parseInt(hd.year),
+            month: hd.month.number,
+            day: parseInt(hd.day),
+            month_name: hd.month.en,
+            formatted: `${parseInt(hd.day)} ${hd.month.en} ${hd.year}`,
+            formatted_arabic: `${hd.day} ${hd.month.ar} ${hd.year}`,
+          };
+        }
+      } catch (err) {
+        console.warn(
+          "Could not fetch online hijri date, falling back to local computation:",
+          err,
+        );
+      }
+
+      // Fallback to local Rust computation if online fails
+      if (!hijriDateData) {
+        hijriDateData = await invoke<HijriDate>("get_hijri_date", {});
+      }
+
+      hijriDate = hijriDateData;
+      error = null;
     } catch (e) {
       error = String(e);
     } finally {
@@ -416,15 +450,15 @@
               </div>
 
               <div
-                class="mt-[clamp(0.25rem,1.5vmin,0.5rem)] flex items-center justify-center gap-[clamp(0.25rem,1vmin,0.5rem)] bg-[var(--glass-bg)] px-[clamp(0.5rem,3vmin,0.75rem)] py-[clamp(0.25rem,1.2vmin,0.5rem)] rounded-[clamp(0.5rem,2vmin,0.75rem)] border border-[var(--glass-border)] backdrop-blur-md w-full max-w-[14rem] shadow-inner flex-shrink-0"
+                class="mt-[clamp(0.25rem,1.5vh,0.5rem)] flex items-center justify-center gap-[clamp(0.25rem,1vh,0.5rem)] bg-[var(--glass-bg)] px-[clamp(0.5rem,3vh,0.75rem)] py-[clamp(0.25rem,1.2vh,0.5rem)] rounded-[clamp(0.5rem,2vh,0.75rem)] border border-[var(--glass-border)] backdrop-blur-md w-full max-w-[14rem] shadow-inner flex-shrink-0"
               >
                 <div
-                  class="w-[clamp(0.4rem,1.5vmin,0.6rem)] h-[clamp(0.4rem,1.5vmin,0.6rem)] rounded-full {prayerTimes.current_prayer
+                  class="w-[clamp(0.4rem,1.5vh,0.6rem)] h-[clamp(0.4rem,1.5vh,0.6rem)] rounded-full {prayerTimes.current_prayer
                     ? 'bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]'
                     : 'bg-[var(--text-main)]/30'}"
                 ></div>
                 <p
-                  class="text-[var(--text-muted)] font-medium tracking-wide text-[clamp(0.7rem,2.2vmin,0.875rem)] w-full"
+                  class="text-[var(--text-muted)] font-medium tracking-wide text-[clamp(0.7rem,2.2vh,0.875rem)] w-full text-center md:text-left"
                 >
                   Current: <span
                     class="text-[var(--text-main)] font-bold capitalize"
@@ -439,20 +473,20 @@
 
       <!-- Right Column: Prayer List -->
       <div
-        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,3vmin,1rem)] rounded-[clamp(1rem,4vmin,2rem)] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-1 min-h-0"
+        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,2vh,1rem)] rounded-[clamp(1rem,4vh,2rem)] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-1 min-h-[40vh]"
       >
         <div
           class="absolute right-0 top-0 w-[120%] lg:w-[100%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none -translate-y-1/2"
         ></div>
 
         <h2
-          class="text-[clamp(0.875rem,3vmin,1.125rem)] font-bold tracking-tight mb-[clamp(0.25rem,1.5vmin,0.5rem)] px-[clamp(0.25rem,1vmin,0.5rem)] text-[var(--text-main)]/90 flex-shrink-0"
+          class="text-[clamp(0.875rem,3vh,1.125rem)] font-bold tracking-tight mb-[clamp(0.125rem,1vh,0.5rem)] px-[clamp(0.25rem,1vh,0.5rem)] text-[var(--text-main)]/90 flex-shrink-0"
         >
           Daily Times
         </h2>
 
         <div
-          class="space-y-[clamp(0.125rem,0.5vmin,0.25rem)] relative z-10 flex-1 flex flex-col justify-around"
+          class="relative z-10 flex-1 flex flex-col justify-between gap-[clamp(0.125rem,1vh,0.5rem)] overflow-hidden"
           role="list"
           aria-label="Daily prayer times"
         >
@@ -463,7 +497,7 @@
             {@const isNext = prayerTimes?.next_prayer?.toLowerCase() === prayer}
 
             <div
-              class="flex items-center justify-between p-[clamp(0.375rem,1.5vmin,0.75rem)] rounded-[clamp(0.5rem,2vmin,0.75rem)] transition-all duration-500 ease-out group relative overflow-hidden min-h-0 flex-1
+              class="flex items-center justify-between p-[clamp(0.25rem,1.5vh,0.75rem)] rounded-[clamp(0.5rem,2vh,0.75rem)] transition-all duration-500 ease-out group relative overflow-hidden flex-1 min-h-0
                  {isCurrent
                 ? 'bg-[var(--text-main)]/10 shadow-[0_4px_24px_var(--glass-shadow)] border border-[var(--glass-border)] scale-[1.02]'
                 : 'bg-[var(--text-main)]/5 border border-transparent hover:bg-[var(--text-main)]/10 hover:border-[var(--glass-border)]'} 
@@ -480,10 +514,10 @@
               {/if}
 
               <div
-                class="flex items-center gap-[clamp(0.5rem,2.5vmin,1.25rem)] relative z-10 min-w-0"
+                class="flex items-center gap-[clamp(0.5rem,2.5vh,1.25rem)] relative z-10 min-w-0"
               >
                 <div
-                  class="w-[clamp(1.5rem,5.5vmin,2.5rem)] h-[clamp(1.5rem,5.5vmin,2.5rem)] flex items-center justify-center rounded-lg transition-colors duration-300
+                  class="w-[clamp(1.5rem,5.5vh,2.5rem)] h-[clamp(1.5rem,5.5vh,2.5rem)] flex items-center justify-center rounded-lg transition-colors duration-300
                     {isCurrent
                     ? 'bg-[var(--text-main)] text-[var(--on-text-main)] shadow-lg shadow-[var(--text-main)]/20'
                     : 'bg-[var(--text-main)]/5 text-[var(--text-main)]/60 group-hover:bg-[var(--text-main)]/10 group-hover:text-[var(--text-main)] border border-[var(--glass-border)]'}"
@@ -504,12 +538,12 @@
                     <path d={prayerIcons[prayer]} />
                   </svg>
                 </div>
-                <div class="min-w-0">
+                <div class="min-w-0 flex items-center justify-center">
                   <div
-                    class="flex items-center gap-[clamp(0.25rem,1vmin,0.75rem)]"
+                    class="flex items-center gap-[clamp(0.25rem,1vh,0.75rem)]"
                   >
                     <p
-                      class="font-bold capitalize text-[clamp(0.75rem,2.8vmin,1.1rem)] tracking-wide truncate {isCurrent
+                      class="font-bold capitalize text-[clamp(0.75rem,2.8vh,1.1rem)] tracking-wide truncate {isCurrent
                         ? 'text-[var(--text-main)] drop-shadow-md'
                         : 'text-[var(--text-main)]/80'}"
                     >
@@ -517,12 +551,12 @@
                     </p>
                     {#if isCurrent}
                       <span
-                        class="text-[clamp(0.5rem,1.5vmin,0.625rem)] font-bold uppercase tracking-wider bg-emerald-500/20 px-[clamp(0.25rem,1vmin,0.5rem)] py-[clamp(0.125rem,0.5vmin,0.125rem)] rounded-full ring-1 ring-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                        class="text-[clamp(0.4rem,1.2vh,0.625rem)] font-bold uppercase tracking-wider bg-emerald-500/20 px-[clamp(0.2rem,1vh,0.5rem)] py-[clamp(0.125rem,0.5vh,0.125rem)] rounded-full ring-1 ring-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                         >Now</span
                       >
                     {:else if isNext}
                       <span
-                        class="text-[clamp(0.5rem,1.5vmin,0.625rem)] font-bold uppercase tracking-wider bg-indigo-500/30 px-[clamp(0.25rem,1vmin,0.5rem)] py-[clamp(0.125rem,0.5vmin,0.125rem)] rounded-full text-indigo-200 ring-1 ring-indigo-500/50"
+                        class="text-[clamp(0.4rem,1.2vh,0.625rem)] font-bold uppercase tracking-wider bg-indigo-500/30 px-[clamp(0.2rem,1vh,0.5rem)] py-[clamp(0.125rem,0.5vh,0.125rem)] rounded-full text-indigo-200 ring-1 ring-indigo-500/50"
                         >Next</span
                       >
                     {/if}
@@ -530,7 +564,7 @@
                 </div>
               </div>
               <span
-                class="text-[clamp(0.7rem,2.8vmin,1rem)] font-mono tracking-wider relative z-10 whitespace-nowrap {isCurrent
+                class="text-[clamp(0.7rem,2.8vh,1rem)] font-mono tracking-wider relative z-10 whitespace-nowrap {isCurrent
                   ? 'font-black text-[var(--text-main)]'
                   : 'font-medium text-[var(--text-main)]/70'}"
                 >{formatPrayerTime(time)}</span

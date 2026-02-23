@@ -300,6 +300,7 @@ pub struct HijriResponse {
     pub day: u8,
     pub month_name: String,
     pub formatted: String,
+    pub formatted_arabic: String,
 }
 
 #[tauri::command]
@@ -318,6 +319,7 @@ pub fn get_hijri_date(offset_days: Option<i32>) -> std::result::Result<HijriResp
         day: hijri.day,
         month_name: hijri.month_name_english().to_string(),
         formatted: hijri.format(),
+        formatted_arabic: hijri.format_arabic(),
     })
 }
 
