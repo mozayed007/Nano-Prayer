@@ -1,6 +1,2 @@
-SHA256 hash of .\target\release\bundle\nsis\NanoPrayReminder_0.1.1_x64-setup.exe:
-4688d2c0e472465510bd54d0674c447fae1491ca299fcda10b0559c6a2a81aef
-CertUtil: -hashfile command completed successfully.
-SHA256 hash of .\target\release\nano-pray-reminder.exe:
-43a6a5de7775bb1f85e40ef1443a014368d6474a322a2c85af731e44007e5ac2
-CertUtil: -hashfile command completed successfully.
+342f9bcbe852fae0993addcde8cef0b60e2a46fe16f7b587dddb58964b539c8c  NanoPrayReminder_0.1.1_portable.exe
+1337036293ee7e5e1494948283e8399fc5a757b355d31a9c531ed86010fda11c  NanoPrayReminder_0.1.1_x64-setup.exe
