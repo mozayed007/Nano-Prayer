@@ -17,13 +17,22 @@
   let unlisten: UnlistenFn | null = null;
   let audioPlaying = $state(false);
 
-  async function startListening() {
-    unlisten = await listen<PrayerAlertPayload>("prayer-alert", (event) => {
-      activeAlert = event.payload;
-      if (activeAlert.alert_type === "on_time") {
-        audioPlaying = true;
+  async function startListening(retries = 3) {
+    try {
+      unlisten = await listen<PrayerAlertPayload>("prayer-alert", (event) => {
+        activeAlert = event.payload;
+        if (activeAlert.alert_type === "on_time") {
+          audioPlaying = true;
+        }
+      });
+    } catch (e) {
+      console.warn(`Failed to start event listener (attempts left: ${retries - 1}):`, e);
+      if (retries > 1) {
+        await new Promise((r) => setTimeout(r, 500));
+        return startListening(retries - 1);
       }
-    });
+      console.error("Could not start prayer-alert listener after retries", e);
+    }
   }
 
   onMount(() => {
