@@ -904,6 +904,56 @@
                   <span class="font-medium">Show Arabic Names</span>
                 </label>
               </div>
+
+              <div class="space-y-3">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                  <span class="text-2xl">🌙</span> Hijri Date Adjustment
+                </h2>
+                <p class="text-sm text-[var(--text-muted)] leading-relaxed">
+                  Different countries follow different moon sighting
+                  conventions. Adjust if the displayed Hijri date is off by 1
+                  day from your local authority (e.g. set <strong>-1</strong> for
+                  Egypt's Dar al-Ifta).
+                </p>
+                <div
+                  class="flex items-center gap-3 bg-[var(--glass-bg)] p-4 rounded-xl border border-[var(--glass-border)]"
+                >
+                  <button
+                    type="button"
+                    class="w-10 h-10 rounded-lg bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] font-bold text-xl transition border border-[var(--glass-border)] disabled:opacity-30"
+                    onclick={() =>
+                      config &&
+                      config.hijri_offset > -2 &&
+                      (config.hijri_offset -= 1)}
+                    disabled={config.hijri_offset <= -2}
+                    aria-label="Decrease Hijri offset">−</button
+                  >
+                  <div class="flex-1 text-center">
+                    <span class="text-2xl font-bold text-[var(--text-main)]">
+                      {config.hijri_offset > 0
+                        ? `+${config.hijri_offset}`
+                        : config.hijri_offset}
+                    </span>
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5">
+                      {config.hijri_offset === 0
+                        ? "Astronomical (Saudi)"
+                        : config.hijri_offset < 0
+                          ? `${Math.abs(config.hijri_offset)} day${Math.abs(config.hijri_offset) > 1 ? "s" : ""} earlier`
+                          : `${config.hijri_offset} day${config.hijri_offset > 1 ? "s" : ""} later`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="w-10 h-10 rounded-lg bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] font-bold text-xl transition border border-[var(--glass-border)] disabled:opacity-30"
+                    onclick={() =>
+                      config &&
+                      config.hijri_offset < 2 &&
+                      (config.hijri_offset += 1)}
+                    disabled={config.hijri_offset >= 2}
+                    aria-label="Increase Hijri offset">+</button
+                  >
+                </div>
+              </div>
             </div>
           {:else if activeTab === "audio"}
             <div in:fade={{ duration: 200 }} class="space-y-8">

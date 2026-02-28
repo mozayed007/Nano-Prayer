@@ -132,6 +132,8 @@
     isha: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z", // Moon
   };
 
+  let hijriOffset = $state(0);
+
   async function loadData() {
     // Check if running in Tauri environment
     if (
@@ -154,13 +156,15 @@
       prayerTimes = times;
       $currentPrayer = times.next_prayer;
 
-      // Try fetching Aladhan Hijri Date online first
+      // Try fetching Aladhan Hijri Date online, applying the user's offset
       let hijriDateData: HijriDate | null = null;
       try {
-        const today = new Date();
-        const dd = String(today.getDate()).padStart(2, "0");
-        const mm = String(today.getMonth() + 1).padStart(2, "0");
-        const yyyy = today.getFullYear();
+        // Apply the offset to the date we look up, so Aladhan returns the right day
+        const lookupDate = new Date();
+        lookupDate.setDate(lookupDate.getDate() + hijriOffset);
+        const dd = String(lookupDate.getDate()).padStart(2, "0");
+        const mm = String(lookupDate.getMonth() + 1).padStart(2, "0");
+        const yyyy = lookupDate.getFullYear();
 
         const response = await fetch(
           `http://api.aladhan.com/v1/gToH/${dd}-${mm}-${yyyy}`,
@@ -184,9 +188,11 @@
         );
       }
 
-      // Fallback to local Rust computation if online fails
+      // Fallback to local Rust computation, passing the offset
       if (!hijriDateData) {
-        hijriDateData = await invoke<HijriDate>("get_hijri_date", {});
+        hijriDateData = await invoke<HijriDate>("get_hijri_date", {
+          offsetDays: hijriOffset,
+        });
       }
 
       hijriDate = hijriDateData;
@@ -233,16 +239,20 @@
   }
 
   onMount(() => {
-    loadData();
-
-    // Load clock format from config
+    // Load config first so hijriOffset and clockFormat are set before loadData runs
     invoke("get_config")
       .then((cfg: any) => {
         if (cfg?.appearance?.clock_format) {
           $clockFormat = cfg.appearance.clock_format;
         }
+        if (typeof cfg?.hijri_offset === "number") {
+          hijriOffset = cfg.hijri_offset;
+        }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        loadData();
+      });
 
     // Update current time every second
     const interval = setInterval(() => {
