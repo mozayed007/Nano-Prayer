@@ -78,8 +78,30 @@ pub fn run() {
             let state = app_handle.state::<AppState>();
             if let Ok(loaded_config) = nano_pray_core::config::AppConfig::load() {
                 if let Ok(mut config_guard) = state.config.lock() {
-                    *config_guard = loaded_config;
+                    *config_guard = loaded_config.clone();
                     tracing::info!("Configuration loaded successfully");
+                }
+
+                // Sync the OS autostart entry with the stored config preference.
+                // This is critical for portable builds: each launch re-registers the current
+                // exe path, so moving the exe never leaves a stale/broken registry entry.
+                use tauri_plugin_autostart::ManagerExt;
+                let autostart = app_handle.autolaunch();
+                if loaded_config.advanced.auto_start {
+                    if let Err(e) = autostart.enable() {
+                        tracing::warn!("Failed to enable autostart: {}", e);
+                    } else {
+                        tracing::info!("Autostart enabled (synced from config).");
+                    }
+                } else {
+                    // Only disable if currently enabled to avoid errors on fresh installs
+                    if autostart.is_enabled().unwrap_or(false) {
+                        if let Err(e) = autostart.disable() {
+                            tracing::warn!("Failed to disable autostart: {}", e);
+                        } else {
+                            tracing::info!("Autostart disabled (synced from config).");
+                        }
+                    }
                 }
             } else {
                 tracing::warn!("Failed to load configuration, using defaults");

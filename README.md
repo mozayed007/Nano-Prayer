@@ -3,10 +3,14 @@
 ![NanoPrayReminder Banner](static/banner.png)
 > **Credits:** Banner and App Icon Design by [AhmedV19](https://x.com/A7medV19)
 
+[![GitHub release (latest)](https://img.shields.io/github/v/release/mozayed007/Nano-Prayer?include_prereleases&label=Latest&color=blue)](https://github.com/mozayed007/Nano-Prayer/releases/latest)
+[![GitHub downloads](https://img.shields.io/github/downloads/mozayed007/Nano-Prayer/total?label=Downloads&color=brightgreen)](https://github.com/mozayed007/Nano-Prayer/releases)
+[![GitHub stars](https://img.shields.io/github/stars/mozayed007/Nano-Prayer?style=flat&color=yellow)](https://github.com/mozayed007/Nano-Prayer/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
-[![Tauri: v2](https://img.shields.io/badge/Tauri-v2-blue.svg)](https://tauri.app)
-[![Status: Pre-release](https://img.shields.io/badge/Status-Pre--release-orange.svg)](https://github.com)
+[![Built with Tauri](https://img.shields.io/badge/Built%20with-Tauri%20v2-purple.svg)](https://tauri.app)
+[![Built with Rust](https://img.shields.io/badge/Backend-Rust-orange.svg)](https://www.rust-lang.org)
+[![Status: Pre-release](https://img.shields.io/badge/Status-Pre--release-orange.svg)](https://github.com/mozayed007/Nano-Prayer/releases)
 
 **A modern, lightweight Islamic prayer time reminder app** built with Rust + Tauri + Svelte. NanoPrayReminder provides accurate prayer times, customizable reminders, and a beautiful native desktop experience.
 

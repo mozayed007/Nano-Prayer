@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Build & Release (Windows)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install JS dependencies
+        run: bun install
+
+      - name: Build Tauri app
+        run: bun run tauri:build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Collect build artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $setupExe = Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*_setup.exe" | Select-Object -First 1
+          $portableExe = Get-Item "src-tauri/target/release/NanoPrayReminder.exe"
+          $tag = "${{ github.ref_name }}"
+
+          $setupName = "NanoPrayReminder_${tag}_setup.exe"
+          $portableName = "NanoPrayReminder_${tag}_portable.exe"
+
+          Copy-Item $setupExe.FullName $setupName
+          Copy-Item $portableExe.FullName $portableName
+
+          # Generate SHA256 checksums
+          $setupHash = (Get-FileHash $setupName -Algorithm SHA256).Hash
+          $portableHash = (Get-FileHash $portableName -Algorithm SHA256).Hash
+          "$setupHash  $setupName`n$portableHash  $portableName" | Set-Content SHA256SUMS.txt
+
+          echo "setup=$setupName" >> $env:GITHUB_OUTPUT
+          echo "portable=$portableName" >> $env:GITHUB_OUTPUT
+
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}" -replace "^v", ""
+          $content = Get-Content CHANGELOG.md -Raw
+          # Extract the section for this version
+          $pattern = "(?s)## \[$tag\][^\n]*\n(.+?)(?=\n## \[|\z)"
+          if ($content -match $pattern) {
+            $notes = $matches[1].Trim()
+          } else {
+            $notes = "See CHANGELOG.md for details."
+          }
+          $notes | Set-Content release_notes.txt
+          echo "has_notes=$($notes -ne 'See CHANGELOG.md for details.')" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ github.ref_name }}"
+          body_path: release_notes.txt
+          prerelease: true
+          files: |
+            ${{ steps.artifacts.outputs.setup }}
+            ${{ steps.artifacts.outputs.portable }}
+            SHA256SUMS.txt

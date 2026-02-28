@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { open } from "@tauri-apps/plugin-dialog";
+  import { enable, disable } from "@tauri-apps/plugin-autostart";
   import { fade } from "svelte/transition";
   import { clockFormat, theme } from "$lib/stores";
   import type { AppConfig, SavedLocation } from "$lib/types";
@@ -71,6 +72,18 @@
     if (!config) return;
     try {
       await invoke("save_config", { config });
+
+      // Handle autostart
+      if (config.advanced.auto_start) {
+        await enable().catch((e) =>
+          console.error("Failed to enable autostart:", e),
+        );
+      } else {
+        await disable().catch((e) =>
+          console.error("Failed to disable autostart:", e),
+        );
+      }
+
       // Sync stores
       $clockFormat = config.appearance.clock_format;
       $theme = config.appearance.theme;
