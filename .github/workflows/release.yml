@@ -50,21 +50,28 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
 
-          # Tauri uses the workspace-level target/ dir (Cargo.toml is at repo root)
-          $setupExe = Get-ChildItem "target/release/bundle/nsis" -Filter "*_setup.exe" -ErrorAction SilentlyContinue |
+          # NSIS bundler produces: ProductName_version_arch-setup.exe (hyphen before setup)
+          # Use *setup.exe (no underscore requirement) to match both conventions
+          $setupExe = Get-ChildItem "target/release/bundle/nsis" -Filter "*setup.exe" -ErrorAction SilentlyContinue |
                       Select-Object -First 1
           if (-not $setupExe) {
-            # Fallback: search entire tree
-            $setupExe = Get-ChildItem -Path "." -Recurse -Filter "*_setup.exe" | Select-Object -First 1
+            $setupExe = Get-ChildItem -Path "." -Recurse -Filter "*setup.exe" -ErrorAction SilentlyContinue |
+                        Select-Object -First 1
           }
 
-          $portableExe = Get-Item "target/release/NanoPrayReminder.exe" -ErrorAction SilentlyContinue
+          # Portable: Cargo package name is nano-pray-reminder, not NanoPrayReminder
+          $portableExe = Get-Item "target/release/nano-pray-reminder.exe" -ErrorAction SilentlyContinue
           if (-not $portableExe) {
-            $portableExe = Get-ChildItem -Path "." -Recurse -Filter "NanoPrayReminder.exe" | Select-Object -First 1
+            $portableExe = Get-ChildItem "target/release" -Filter "*.exe" -ErrorAction SilentlyContinue |
+                           Where-Object { $_.Name -notmatch "setup|uninstall|bun|cargo" } |
+                           Select-Object -First 1
           }
 
-          if (-not $setupExe)   { Write-Error "Could not find setup exe!";    exit 1 }
-          if (-not $portableExe){ Write-Error "Could not find portable exe!"; exit 1 }
+          Write-Host "Setup exe:    $($setupExe.FullName)"
+          Write-Host "Portable exe: $($portableExe.FullName)"
+
+          if (-not $setupExe)    { Write-Error "Could not find setup exe!";    exit 1 }
+          if (-not $portableExe) { Write-Error "Could not find portable exe!"; exit 1 }
 
           $setupName    = "NanoPrayReminder_${tag}_setup.exe"
           $portableName = "NanoPrayReminder_${tag}_portable.exe"
@@ -72,7 +79,6 @@ jobs:
           Copy-Item $setupExe.FullName    $setupName
           Copy-Item $portableExe.FullName $portableName
 
-          # Generate SHA256 checksums
           $setupHash    = (Get-FileHash $setupName    -Algorithm SHA256).Hash
           $portableHash = (Get-FileHash $portableName -Algorithm SHA256).Hash
           "$setupHash  $setupName`n$portableHash  $portableName" | Set-Content SHA256SUMS.txt
