@@ -22,7 +22,9 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
+          # Cargo workspace root is the repo root, target/ is at repo root
           workspaces: ". -> target"
+          cache-on-failure: true
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -32,30 +34,50 @@ jobs:
 
       - name: Build Tauri app
         run: bun run tauri:build
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Locate build artifacts
+        shell: pwsh
+        run: |
+          Write-Host "=== Bundle search ==="
+          Get-ChildItem -Path "." -Recurse -Filter "*_setup.exe" -ErrorAction SilentlyContinue | Select-Object FullName
+          Get-ChildItem -Path "." -Recurse -Filter "NanoPrayReminder.exe" -ErrorAction SilentlyContinue | Select-Object FullName
+          Write-Host "=== NSIS dir (workspace root target) ==="
+          Get-ChildItem "target/release/bundle/nsis" -ErrorAction SilentlyContinue
 
       - name: Collect build artifacts
         id: artifacts
         shell: pwsh
         run: |
-          $setupExe = Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*_setup.exe" | Select-Object -First 1
-          $portableExe = Get-Item "src-tauri/target/release/NanoPrayReminder.exe"
           $tag = "${{ github.ref_name }}"
 
-          $setupName = "NanoPrayReminder_${tag}_setup.exe"
+          # Tauri uses the workspace-level target/ dir (Cargo.toml is at repo root)
+          $setupExe = Get-ChildItem "target/release/bundle/nsis" -Filter "*_setup.exe" -ErrorAction SilentlyContinue |
+                      Select-Object -First 1
+          if (-not $setupExe) {
+            # Fallback: search entire tree
+            $setupExe = Get-ChildItem -Path "." -Recurse -Filter "*_setup.exe" | Select-Object -First 1
+          }
+
+          $portableExe = Get-Item "target/release/NanoPrayReminder.exe" -ErrorAction SilentlyContinue
+          if (-not $portableExe) {
+            $portableExe = Get-ChildItem -Path "." -Recurse -Filter "NanoPrayReminder.exe" | Select-Object -First 1
+          }
+
+          if (-not $setupExe)   { Write-Error "Could not find setup exe!";    exit 1 }
+          if (-not $portableExe){ Write-Error "Could not find portable exe!"; exit 1 }
+
+          $setupName    = "NanoPrayReminder_${tag}_setup.exe"
           $portableName = "NanoPrayReminder_${tag}_portable.exe"
 
-          Copy-Item $setupExe.FullName $setupName
+          Copy-Item $setupExe.FullName    $setupName
           Copy-Item $portableExe.FullName $portableName
 
           # Generate SHA256 checksums
-          $setupHash = (Get-FileHash $setupName -Algorithm SHA256).Hash
+          $setupHash    = (Get-FileHash $setupName    -Algorithm SHA256).Hash
           $portableHash = (Get-FileHash $portableName -Algorithm SHA256).Hash
           "$setupHash  $setupName`n$portableHash  $portableName" | Set-Content SHA256SUMS.txt
 
-          echo "setup=$setupName" >> $env:GITHUB_OUTPUT
+          echo "setup=$setupName"       >> $env:GITHUB_OUTPUT
           echo "portable=$portableName" >> $env:GITHUB_OUTPUT
 
       - name: Extract release notes from CHANGELOG
