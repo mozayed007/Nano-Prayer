@@ -149,7 +149,7 @@ impl PrayerCalculator {
             self.build_info(Prayer::Maghrib, st.time(SalahPrayer::Maghrib), now),
             self.build_info(Prayer::Isha, st.time(SalahPrayer::Isha), now),
         ];
-        let mut next_idx = prayers.iter().position(|p| !p.has_passed);
+        let next_idx = prayers.iter().position(|p| !p.has_passed);
         let mut next_prayer = next_idx.map(|i| prayers[i].prayer);
         let mut mins = next_idx.and_then(|i| prayers[i].minutes_until);
 

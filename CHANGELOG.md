@@ -14,6 +14,17 @@ All notable changes to this project are documented in this file.
 
 - GitHub Actions CI/CD release workflow (`.github/workflows/release.yml`) — automatically builds Windows NSIS installer + portable `.exe` and publishes them as a pre-release when a `v*` tag is pushed.
 - `@tauri-apps/plugin-autostart` frontend integration — the "Start on System Startup" toggle in Settings now directly calls `enable()`/`disable()` on the OS.
+- Unified alert lifecycle across both UIs — alert window and in-app toast now share the same dismiss event flow (`dismiss_alert`), so one dismiss stops audio and clears both.
+- Prayer completion logging from alerts — both UIs now include an **I Prayed** action that records completion to persistent prayer logs and feeds Statistics.
+
+### Updated
+
+- Reminder edit behavior for same prayer/day — changing before/after reminder settings now resets that prayer’s fired before/after state so new edited reminder timing can trigger correctly.
+- On-time alert behavior for focused/fullscreen apps — alert window shows without forcing focus, reducing app-switch interruptions while still surfacing reminders.
+- Statistics backend wiring — implemented `get_statistics` and persistent prayer log load/save, so the Statistics page now reflects real tracked data.
+- Reminder controls for before/after windows — added dedicated toggles (`before_enabled`, `after_enabled`) and enforced zero-minute behavior as disabled for before/after reminders.
+- System tray next-prayer tooltip formatting — now displays clear `Xh Ym till Prayer` text instead of only raw total minutes.
+- WebView2 idle memory optimization — alert window is no longer created at startup and is now lazily created only when an alert is fired.
 
 ---
 

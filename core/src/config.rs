@@ -32,10 +32,14 @@ pub enum ClockFormat {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReminderConfig {
     pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub before_enabled: bool,
     pub minutes_before: i32,
     #[serde(default)]
     pub play_sound_before: bool,
     pub play_adhan: bool,
+    #[serde(default = "default_true")]
+    pub after_enabled: bool,
     #[serde(default)]
     pub minutes_after: i32,
     #[serde(default)]
@@ -49,9 +53,11 @@ impl Default for ReminderConfig {
     fn default() -> Self {
         Self {
             enabled: true,
+            before_enabled: true,
             minutes_before: 15,
             play_sound_before: false,
             play_adhan: true,
+            after_enabled: true,
             minutes_after: 0,
             play_sound_after: false,
             custom_sound: None,
@@ -59,6 +65,10 @@ impl Default for ReminderConfig {
             show_notification: true,
         }
     }
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Audio settings
@@ -277,4 +287,3 @@ mod tests {
         assert_eq!(fajr_reminder.minutes_before, 15);
     }
 }
-

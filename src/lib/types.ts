@@ -17,9 +17,11 @@ export interface SavedLocation {
 
 export interface ReminderConfig {
   enabled: boolean;
+  before_enabled: boolean;
   minutes_before: number;
   play_sound_before: boolean;
   play_adhan: boolean;
+  after_enabled: boolean;
   minutes_after: number;
   play_sound_after: boolean;
   custom_sound: string | null;
@@ -84,4 +86,3 @@ export interface AppConfig {
   advanced: AdvancedSettings;
   last_backup_path: string | null;
 }
-

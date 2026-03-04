@@ -12,6 +12,7 @@ mod webview2_check;
 
 use audio::AudioState;
 use commands::AppState;
+use nano_pray_core::statistics::PrayerLog;
 use scheduler::Scheduler;
 
 pub fn run() {
@@ -32,6 +33,7 @@ pub fn run() {
         .manage(AppState {
             config: Mutex::new(nano_pray_core::config::AppConfig::default()),
             city_db: Mutex::new(nano_pray_core::location::CityDatabase::new()),
+            prayer_log: Mutex::new(PrayerLog::default()),
         })
         .manage(AudioState(std::sync::Arc::new(audio::AudioPlayer::new())))
         .setup(|app| {
@@ -107,6 +109,15 @@ pub fn run() {
                 tracing::warn!("Failed to load configuration, using defaults");
             }
 
+            if let Ok(loaded_log) = PrayerLog::load() {
+                if let Ok(mut log_guard) = state.prayer_log.lock() {
+                    *log_guard = loaded_log;
+                    tracing::info!("Prayer log loaded successfully");
+                }
+            } else {
+                tracing::warn!("Failed to load prayer log, using defaults");
+            }
+
             // Start Scheduler
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -159,8 +170,11 @@ pub fn run() {
             commands::send_notification,
             commands::play_adhan,
             commands::stop_audio,
+            commands::dismiss_alert,
+            commands::mark_prayer_completed,
             commands::pause_audio,
             commands::resume_audio,
+            commands::get_statistics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

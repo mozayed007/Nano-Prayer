@@ -61,6 +61,22 @@
     }
     try {
       config = await invoke<AppConfig>("get_config");
+      if (config) {
+        for (const settings of Object.values(config.reminders)) {
+          if (settings.before_enabled === undefined) {
+            settings.before_enabled = true;
+          }
+          if (settings.after_enabled === undefined) {
+            settings.after_enabled = true;
+          }
+          if (settings.minutes_before < 0) {
+            settings.minutes_before = 0;
+          }
+          if (settings.minutes_after < 0) {
+            settings.minutes_after = 0;
+          }
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -670,6 +686,7 @@
                                 bind:value={settings.minutes_before}
                                 min="0"
                                 max="60"
+                                disabled={!settings.before_enabled}
                                 class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-main)] focus:border-blue-500 outline-none"
                               />
                             </label>
@@ -678,7 +695,18 @@
                             >
                               <input
                                 type="checkbox"
+                                bind:checked={settings.before_enabled}
+                                class="accent-blue-500 w-4 h-4 rounded"
+                              />
+                              <span class="text-sm">Enable Before Reminder</span>
+                            </label>
+                            <label
+                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
+                            >
+                              <input
+                                type="checkbox"
                                 bind:checked={settings.play_sound_before}
+                                disabled={!settings.before_enabled}
                                 class="accent-blue-500 w-4 h-4 rounded"
                               />
                               <span class="text-sm">Play Alert Sound</span>
@@ -740,6 +768,7 @@
                                 bind:value={settings.minutes_after}
                                 min="0"
                                 max="60"
+                                disabled={!settings.after_enabled}
                                 class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-main)] focus:border-blue-500 outline-none"
                               />
                             </label>
@@ -748,7 +777,18 @@
                             >
                               <input
                                 type="checkbox"
+                                bind:checked={settings.after_enabled}
+                                class="accent-blue-500 w-4 h-4 rounded"
+                              />
+                              <span class="text-sm">Enable After Reminder</span>
+                            </label>
+                            <label
+                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
+                            >
+                              <input
+                                type="checkbox"
                                 bind:checked={settings.play_sound_after}
+                                disabled={!settings.after_enabled}
                                 class="accent-blue-500 w-4 h-4 rounded"
                               />
                               <span class="text-sm">Play Alert Sound</span>

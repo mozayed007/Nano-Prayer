@@ -15,15 +15,14 @@
 
   let activeAlert = $state<PrayerAlertPayload | null>(null);
   let unlisten: UnlistenFn | null = null;
+  let unlistenDismissed: UnlistenFn | null = null;
   let audioPlaying = $state(false);
 
   async function startListening(retries = 3) {
     try {
       unlisten = await listen<PrayerAlertPayload>("prayer-alert", (event) => {
         activeAlert = event.payload;
-        if (activeAlert.alert_type === "on_time") {
-          audioPlaying = true;
-        }
+        audioPlaying = activeAlert.alert_type === "on_time";
       });
     } catch (e) {
       console.warn(`Failed to start event listener (attempts left: ${retries - 1}):`, e);
@@ -43,6 +42,14 @@
 
     if (isTauri) {
       startListening();
+      listen("prayer-alert-dismissed", async () => {
+        activeAlert = null;
+        audioPlaying = false;
+        const appWindow = getCurrentWindow();
+        await appWindow.hide();
+      }).then((fn) => {
+        unlistenDismissed = fn;
+      });
 
       // Global shortcut or Escape to dismiss
       const handleKeydown = (e: KeyboardEvent) => {
@@ -53,12 +60,14 @@
       return () => {
         window.removeEventListener("keydown", handleKeydown);
         if (unlisten) unlisten();
+        if (unlistenDismissed) unlistenDismissed();
       };
     }
   });
 
   onDestroy(() => {
     if (unlisten) unlisten();
+    if (unlistenDismissed) unlistenDismissed();
   });
 
   async function dismiss() {
@@ -66,11 +75,18 @@
     audioPlaying = false;
 
     try {
-      await invoke("stop_audio"); // Stop any playing sounds
-      const appWindow = getCurrentWindow();
-      await appWindow.hide();
+      await invoke("dismiss_alert");
     } catch (e) {
       console.error("Failed to dismiss alert window", e);
+    }
+  }
+
+  async function markPrayed() {
+    if (!activeAlert) return;
+    try {
+      await invoke("mark_prayer_completed", { prayer: activeAlert.prayer });
+    } catch (e) {
+      console.error("Failed to mark prayer as completed", e);
     }
   }
 
@@ -102,10 +118,7 @@
 </svelte:head>
 
 <!-- Borderless transparent canvas -->
-<main
-  class="w-full h-full bg-transparent p-3 flex items-center justify-center overflow-hidden"
-  data-tauri-drag-region
->
+<main class="w-full h-full bg-transparent p-3 flex items-center justify-center overflow-hidden">
   {#if activeAlert}
     <div
       class="relative w-full h-full {getBackgroundColor(
@@ -113,7 +126,6 @@
       )} border border-white/20 rounded-2xl shadow-2xl p-5 flex flex-col justify-between overflow-hidden backdrop-blur-3xl text-white"
       in:fly={{ y: 20, duration: 600, easing: backOut }}
       out:fade={{ duration: 300 }}
-      data-tauri-drag-region
     >
       <!-- Glass reflection -->
       <div
@@ -175,6 +187,12 @@
           </div>
         {/if}
         <button
+          class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 border border-emerald-400/40 hover:border-emerald-300/60 transition-all font-medium rounded-xl px-5 py-2 flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
+          onclick={markPrayed}
+        >
+          I Prayed
+        </button>
+        <button
           class="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 transition-all font-medium rounded-xl px-5 py-2 flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
           onclick={dismiss}
         >
@@ -185,7 +203,6 @@
   {:else}
     <div
       class="w-full h-full bg-slate-900/40 border border-white/10 rounded-2xl flex items-center justify-center text-white/40 backdrop-blur-md"
-      data-tauri-drag-region
     >
       <div class="text-center font-medium animate-pulse">
         Waiting for alert...

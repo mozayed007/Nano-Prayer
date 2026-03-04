@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
   import { invoke } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
 
   interface PrayerAlertPayload {
@@ -15,7 +15,8 @@
   let visible = $state(false);
 
   onMount(() => {
-    let unlisten: (() => void) | undefined;
+    let unlistenAlert: UnlistenFn | undefined;
+    let unlistenDismissed: UnlistenFn | undefined;
 
     listen<PrayerAlertPayload>("prayer-alert", (event) => {
       alert = event.payload;
@@ -28,20 +29,38 @@
         }, 60000);
       }
     }).then((fn) => {
-      unlisten = fn;
+      unlistenAlert = fn;
+    });
+
+    listen("prayer-alert-dismissed", () => {
+      visible = false;
+      alert = null;
+    }).then((fn) => {
+      unlistenDismissed = fn;
     });
 
     return () => {
-      if (unlisten) unlisten();
+      if (unlistenAlert) unlistenAlert();
+      if (unlistenDismissed) unlistenDismissed();
     };
   });
 
   async function dismiss() {
     visible = false;
+    alert = null;
     try {
-      await invoke("stop_audio");
+      await invoke("dismiss_alert");
     } catch (e) {
       console.error("Failed to stop audio on dismiss:", e);
+    }
+  }
+
+  async function markPrayed() {
+    if (!alert) return;
+    try {
+      await invoke("mark_prayer_completed", { prayer: alert.prayer });
+    } catch (e) {
+      console.error("Failed to mark prayer as completed:", e);
     }
   }
 
@@ -92,6 +111,12 @@
       </div>
 
       <div class="flex gap-3 relative z-10 w-full mt-2">
+        <button
+          onclick={markPrayed}
+          class="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-300 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 border border-emerald-400/40 hover:border-emerald-300/60 shadow-sm focus:outline-none active:scale-95"
+        >
+          I Prayed
+        </button>
         <button
           onclick={dismiss}
           class="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-300 bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 shadow-sm focus:outline-none active:scale-95"

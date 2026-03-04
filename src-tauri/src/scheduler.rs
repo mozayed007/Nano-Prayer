@@ -3,9 +3,10 @@ use crate::commands::AppState;
 use chrono::{DateTime, Local, NaiveDate};
 use nano_pray_core::config::{AppConfig, ReminderConfig};
 use nano_pray_core::prayer::{Prayer, PrayerCalculator, PrayerInfo};
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tauri::Emitter;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_notification::NotificationExt;
 use tokio::time::sleep;
 
@@ -23,9 +24,46 @@ pub struct Scheduler {
     last_check_date: Option<NaiveDate>,
     /// Tracks which (Prayer, phase) reminder has already been fired today so we don't loop.
     /// phase is one of "before", "on_time", "after".
-    fired_reminders: std::collections::HashSet<(Prayer, &'static str)>,
+    fired_reminders: HashSet<(Prayer, &'static str)>,
     /// Tracks which prayers have already had their on-time adhan fired today.
-    fired_prayers: std::collections::HashSet<Prayer>,
+    fired_prayers: HashSet<Prayer>,
+    last_reminder_signatures: HashMap<Prayer, ReminderSignature>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct ReminderSignature {
+    enabled: bool,
+    before_enabled: bool,
+    minutes_before: i32,
+    play_sound_before: bool,
+    play_adhan: bool,
+    after_enabled: bool,
+    minutes_after: i32,
+    play_sound_after: bool,
+    custom_sound: Option<String>,
+    volume_bits: u32,
+    show_notification: bool,
+}
+
+impl ReminderSignature {
+    fn from_config(config: &ReminderConfig) -> Self {
+        Self {
+            enabled: config.enabled,
+            before_enabled: config.before_enabled,
+            minutes_before: config.minutes_before,
+            play_sound_before: config.play_sound_before,
+            play_adhan: config.play_adhan,
+            after_enabled: config.after_enabled,
+            minutes_after: config.minutes_after,
+            play_sound_after: config.play_sound_after,
+            custom_sound: config
+                .custom_sound
+                .as_ref()
+                .map(|path| path.to_string_lossy().to_string()),
+            volume_bits: config.volume.to_bits(),
+            show_notification: config.show_notification,
+        }
+    }
 }
 
 impl Scheduler {
@@ -33,8 +71,9 @@ impl Scheduler {
         Self {
             app,
             last_check_date: None,
-            fired_reminders: std::collections::HashSet::new(),
-            fired_prayers: std::collections::HashSet::new(),
+            fired_reminders: HashSet::new(),
+            fired_prayers: HashSet::new(),
+            last_reminder_signatures: HashMap::new(),
         }
     }
 
@@ -85,8 +124,7 @@ impl Scheduler {
         // Update Tray tooltip with next prayer
         if let Some(tray) = self.app.tray_by_id("tray") {
             if let Some(next) = times.next_prayer {
-                let diff = times.minutes_to_next.unwrap_or(0);
-                let tooltip = format!("Next: {} in {}m", next.name(), diff);
+                let tooltip = format_next_prayer_tooltip(next.name(), times.minutes_to_next);
                 let _ = tray.set_tooltip(Some(tooltip));
             } else {
                 let _ = tray.set_tooltip(Some("No more prayers today"));
@@ -108,6 +146,18 @@ impl Scheduler {
     ) -> Result<(), String> {
         let prayer_name = info.prayer.name().to_lowercase();
         let reminder_config = config.reminder_for(&prayer_name);
+        let signature = ReminderSignature::from_config(&reminder_config);
+
+        if self
+            .last_reminder_signatures
+            .get(&info.prayer)
+            .is_some_and(|previous| previous != &signature)
+        {
+            self.fired_reminders.remove(&(info.prayer, "before"));
+            self.fired_reminders.remove(&(info.prayer, "after"));
+            tracing::info!("Reminder config updated for {}", info.prayer);
+        }
+        self.last_reminder_signatures.insert(info.prayer, signature);
 
         if !reminder_config.enabled {
             return Ok(());
@@ -117,7 +167,8 @@ impl Scheduler {
         let diff = info.time.signed_duration_since(now).num_minutes();
 
         // 1. "Before" reminder — fires once per prayer per day
-        if reminder_config.minutes_before > 0
+        if reminder_config.before_enabled
+            && reminder_config.minutes_before > 0
             && diff > 0
             && diff <= reminder_config.minutes_before as i64
         {
@@ -131,17 +182,13 @@ impl Scheduler {
                     info.time.format("%H:%M")
                 );
 
-                let _ = self.app.emit(
-                    "prayer-alert",
-                    PrayerAlertPayload {
-                        prayer: info.prayer.name().to_string(),
-                        alert_type: "before".to_string(),
-                        title: title.clone(),
-                        body: body.clone(),
-                    },
-                );
-
-                self.show_alert_window();
+                let payload = PrayerAlertPayload {
+                    prayer: info.prayer.name().to_string(),
+                    alert_type: "before".to_string(),
+                    title: title.clone(),
+                    body: body.clone(),
+                };
+                self.emit_alert(payload).await;
 
                 if reminder_config.play_sound_before {
                     let _ = self.trigger_audio(config, info, &reminder_config);
@@ -164,17 +211,13 @@ impl Scheduler {
                     let _ = self.send_notification(&title, &body);
                 }
 
-                let _ = self.app.emit(
-                    "prayer-alert",
-                    PrayerAlertPayload {
-                        prayer: info.prayer.name().to_string(),
-                        alert_type: "on_time".to_string(),
-                        title: title.clone(),
-                        body: body.clone(),
-                    },
-                );
-
-                self.show_alert_window();
+                let payload = PrayerAlertPayload {
+                    prayer: info.prayer.name().to_string(),
+                    alert_type: "on_time".to_string(),
+                    title: title.clone(),
+                    body: body.clone(),
+                };
+                self.emit_alert(payload).await;
 
                 if reminder_config.play_adhan {
                     let _ = self.trigger_audio(config, info, &reminder_config);
@@ -188,7 +231,8 @@ impl Scheduler {
         }
 
         // 3. "After" reminder — fires once per prayer per day
-        if reminder_config.minutes_after > 0
+        if reminder_config.after_enabled
+            && reminder_config.minutes_after > 0
             && diff < 0
             && diff >= -(reminder_config.minutes_after as i64)
         {
@@ -203,17 +247,13 @@ impl Scheduler {
                     info.time.format("%H:%M")
                 );
 
-                let _ = self.app.emit(
-                    "prayer-alert",
-                    PrayerAlertPayload {
-                        prayer: info.prayer.name().to_string(),
-                        alert_type: "after".to_string(),
-                        title: title.clone(),
-                        body: body.clone(),
-                    },
-                );
-
-                self.show_alert_window();
+                let payload = PrayerAlertPayload {
+                    prayer: info.prayer.name().to_string(),
+                    alert_type: "after".to_string(),
+                    title: title.clone(),
+                    body: body.clone(),
+                };
+                self.emit_alert(payload).await;
 
                 if reminder_config.play_sound_after {
                     let _ = self.trigger_audio(config, info, &reminder_config);
@@ -228,12 +268,35 @@ impl Scheduler {
     }
 
     /// Shows the alert window, bringing it to the foreground.
-    fn show_alert_window(&self) {
+    fn show_alert_window(&self) -> bool {
+        let mut created = false;
+        if self.app.get_webview_window("alert").is_none() {
+            created = WebviewWindowBuilder::new(&self.app, "alert", WebviewUrl::App("/alert".into()))
+                .title("Prayer Alert")
+                .inner_size(380.0, 180.0)
+                .resizable(false)
+                .decorations(false)
+                .transparent(true)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .visible(false)
+                .build()
+                .is_ok();
+        }
+
         if let Some(alert_win) = self.app.get_webview_window("alert") {
             let _ = alert_win.unminimize();
             let _ = alert_win.show();
-            let _ = alert_win.set_focus();
         }
+        created
+    }
+
+    async fn emit_alert(&self, payload: PrayerAlertPayload) {
+        let created = self.show_alert_window();
+        if created {
+            sleep(Duration::from_millis(250)).await;
+        }
+        let _ = self.app.emit("prayer-alert", payload);
     }
 
     fn send_notification(&self, title: &str, body: &str) -> Result<(), String> {
@@ -267,5 +330,26 @@ impl Scheduler {
             let _ = audio_state.0.play_embedded(bytes, reminder.volume);
         }
         Ok(())
+    }
+}
+
+fn format_next_prayer_tooltip(next_prayer: &str, minutes_to_next: Option<i32>) -> String {
+    let Some(minutes_to_next) = minutes_to_next else {
+        return format!("Next: {}", next_prayer);
+    };
+
+    if minutes_to_next <= 0 {
+        return format!("Now: {}", next_prayer);
+    }
+
+    let hours = minutes_to_next / 60;
+    let minutes = minutes_to_next % 60;
+
+    if hours > 0 && minutes > 0 {
+        format!("{}h {}m till {}", hours, minutes, next_prayer)
+    } else if hours > 0 {
+        format!("{}h till {}", hours, next_prayer)
+    } else {
+        format!("{}m till {}", minutes, next_prayer)
     }
 }

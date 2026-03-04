@@ -3,7 +3,7 @@
 //! Provides conversion between Gregorian and Hijri (Islamic) calendars.
 //! Based on the Umm al-Qura calendar algorithm.
 
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 /// Hijri date representation

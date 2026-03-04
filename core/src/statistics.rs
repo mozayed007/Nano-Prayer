@@ -3,6 +3,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::error::Result;
 use crate::prayer::Prayer;
 
 /// Prayer entry
@@ -90,6 +91,18 @@ impl PrayerLog {
 
     pub fn len(&self) -> usize { self.entries.len() }
     pub fn is_empty(&self) -> bool { self.entries.is_empty() }
+
+    pub fn entries(&self) -> &[PrayerEntry] { &self.entries }
+
+    pub fn load() -> Result<Self> {
+        let log: Self = confy::load("nano-pray-reminder", "prayer-log")?;
+        Ok(log)
+    }
+
+    pub fn save(&self) -> Result<()> {
+        confy::store("nano-pray-reminder", "prayer-log", self)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

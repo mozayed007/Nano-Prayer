@@ -24,19 +24,6 @@
         "center": true,
         "decorations": true,
         "transparent": false
-      },
-      {
-        "label": "alert",
-        "title": "Prayer Alert",
-        "width": 380,
-        "height": 180,
-        "resizable": false,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "visible": false,
-        "url": "/alert"
       }
     ],
     "security": {
@@ -74,4 +61,3 @@
     }
   }
 }
-
