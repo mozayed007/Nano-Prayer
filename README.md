@@ -56,12 +56,13 @@
 
 ```text
 NanoPrayer/
-├── core/                  # Pure Rust domain library
-├── src-tauri/             # Tauri app (commands, scheduler, audio, tray)
-├── src/                   # Svelte UI routes
-├── scripts/               # Build utility scripts (target pruning)
-├── docs/                  # Progress, design, and debug screenshots
-├── assets/                # Shared assets
+├── core/                  # Rust domain logic (prayer, config, qibla, stats)
+├── src-tauri/             # Tauri backend (commands, scheduler, tray, audio)
+├── src/                   # SvelteKit frontend routes + components
+├── static/                # Web/static assets (banner, favicon)
+├── scripts/               # Build and environment scripts
+├── .github/workflows/     # CI/CD release pipeline
+├── CHANGELOG.md           # Release notes by version
 └── README.md
 ```
 
@@ -104,8 +105,11 @@ bun run tauri:build
 
 Installers are generated under:
 
-- `target/release/bundle/msi/`
 - `target/release/bundle/nsis/`
+
+Portable executable:
+
+- `target/release/nano-pray-reminder.exe`
 
 ### Build Size Management
 
@@ -144,9 +148,9 @@ bun run tauri:dev
 
 ## 📖 Documentation
 
-- 📋 Current project status: [`docs/PROGRESS.md`](docs/PROGRESS.md)
-- 📝 Original planning/spec reference: [`docs/NanoPrayer.md`](docs/NanoPrayer.md)
-- 🐛 UI issue screenshots used during debugging: `docs/debug/screenshot/`
+- 📋 Release history: [`CHANGELOG.md`](CHANGELOG.md)
+- ⚙️ Desktop app config: [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json)
+- 🚀 Release automation: [`.github/workflows/release.yml`](.github/workflows/release.yml)
 
 ---
 
