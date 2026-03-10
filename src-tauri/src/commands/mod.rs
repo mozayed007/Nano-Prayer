@@ -256,6 +256,7 @@ fn parse_prayer_name(prayer: &str) -> Option<Prayer> {
 pub fn mark_prayer_completed(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    audio_state: State<'_, AudioState>,
     prayer: String,
 ) -> std::result::Result<(), String> {
     let parsed = parse_prayer_name(&prayer).ok_or_else(|| "Invalid prayer name".to_string())?;
@@ -264,6 +265,7 @@ pub fn mark_prayer_completed(
     log.mark_completed(today, parsed);
     log.save().map_err(|e| e.to_string())?;
     drop(log);
+    audio_state.inner().0.stop();
     app.emit("statistics-updated", ())
         .map_err(|e| e.to_string())?;
     app.emit("prayer-alert-dismissed", ())

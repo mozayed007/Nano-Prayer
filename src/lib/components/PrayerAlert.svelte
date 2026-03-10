@@ -13,12 +13,13 @@
 
   let alert = $state<PrayerAlertPayload | null>(null);
   let visible = $state(false);
+  let dismissing = $state(false);
 
   onMount(() => {
     let unlistenAlert: UnlistenFn | undefined;
     let unlistenDismissed: UnlistenFn | undefined;
 
-    listen<PrayerAlertPayload>("prayer-alert", (event) => {
+    void listen<PrayerAlertPayload>("prayer-alert", (event) => {
       alert = event.payload;
       visible = true;
 
@@ -28,16 +29,24 @@
           visible = false;
         }, 60000);
       }
-    }).then((fn) => {
-      unlistenAlert = fn;
-    });
+    })
+      .then((fn) => {
+        unlistenAlert = fn;
+      })
+      .catch((e) => {
+        console.error("Failed to listen for prayer alerts:", e);
+      });
 
-    listen("prayer-alert-dismissed", () => {
+    void listen("prayer-alert-dismissed", () => {
       visible = false;
       alert = null;
-    }).then((fn) => {
-      unlistenDismissed = fn;
-    });
+    })
+      .then((fn) => {
+        unlistenDismissed = fn;
+      })
+      .catch((e) => {
+        console.error("Failed to listen for dismiss events:", e);
+      });
 
     return () => {
       if (unlistenAlert) unlistenAlert();
@@ -46,21 +55,29 @@
   });
 
   async function dismiss() {
+    if (dismissing) return;
+    dismissing = true;
     visible = false;
     alert = null;
     try {
       await invoke("dismiss_alert");
     } catch (e) {
       console.error("Failed to stop audio on dismiss:", e);
+    } finally {
+      dismissing = false;
     }
   }
 
   async function markPrayed() {
     if (!alert) return;
+    if (dismissing) return;
+    dismissing = true;
     try {
       await invoke("mark_prayer_completed", { prayer: alert.prayer });
     } catch (e) {
       console.error("Failed to mark prayer as completed:", e);
+    } finally {
+      dismissing = false;
     }
   }
 
@@ -109,16 +126,25 @@
           </p>
         </div>
       </div>
+      <button
+        class="absolute top-3 right-3 z-20 p-2 hover:bg-[var(--text-main)]/10 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)]"
+        onclick={dismiss}
+        aria-label="Dismiss alert"
+      >
+        ✕
+      </button>
 
       <div class="flex gap-3 relative z-10 w-full mt-2">
         <button
           onclick={markPrayed}
+          disabled={dismissing}
           class="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-300 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 border border-emerald-400/40 hover:border-emerald-300/60 shadow-sm focus:outline-none active:scale-95"
         >
           I Prayed
         </button>
         <button
           onclick={dismiss}
+          disabled={dismissing}
           class="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-300 bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 shadow-sm focus:outline-none active:scale-95"
           style={alert.alert_type === "on_time"
             ? "background-color: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4);"

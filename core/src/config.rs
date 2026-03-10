@@ -188,6 +188,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         let mut reminders = HashMap::new();
         reminders.insert("fajr".to_string(), ReminderConfig::default());
+        reminders.insert("sunrise".to_string(), ReminderConfig::default());
         reminders.insert("dhuhr".to_string(), ReminderConfig::default());
         reminders.insert("asr".to_string(), ReminderConfig::default());
         reminders.insert("maghrib".to_string(), ReminderConfig::default());

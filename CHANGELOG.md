@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.3] - 2026-03-10
+
+### Fixed
+
+- **Alert dismiss reliability** — Dismiss now consistently closes the external alert popout and guards against duplicate dismiss actions.
+- **Alert window controls** — Added an explicit `✕` close control on active alert popouts for faster dismissal.
+- **Unhandled promise noise in alert flow** — Hardened alert listener/hide paths to avoid unhandled rejection cascades during dismiss cycles.
+- **Adhan not stopping on prayer completion** — Marking **I Prayed** now stops active audio immediately before emitting UI updates.
+- **Reminder retrigger after edits** — Scheduler now resets same-prayer on-time fired state when reminder configuration changes, so edited reminders can trigger again.
+- **Before/after sound behavior** — Before/after reminder audio now only plays when a custom sound is configured, preventing unintended default adhan playback.
+
+### Updated
+
+- **Fullscreen/focus behavior** — Alert popout is shown without stealing focus, improving non-intrusive behavior while users remain in their current app.
+- **Reminder customization UX** — Settings now disable before/after sound toggles unless a custom audio file is selected, and automatically clear those toggles when custom audio is removed.
+- **Sunrise reminder availability** — Sunrise reminder defaults are restored for new configs and backfilled for existing configs missing that prayer key.
+
+---
+
 ## [0.1.2] - 2026-02-28
 
 ### Fixed

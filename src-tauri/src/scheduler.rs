@@ -155,6 +155,7 @@ impl Scheduler {
         {
             self.fired_reminders.remove(&(info.prayer, "before"));
             self.fired_reminders.remove(&(info.prayer, "after"));
+            self.fired_prayers.remove(&info.prayer);
             tracing::info!("Reminder config updated for {}", info.prayer);
         }
         self.last_reminder_signatures.insert(info.prayer, signature);
@@ -190,7 +191,7 @@ impl Scheduler {
                 };
                 self.emit_alert(payload).await;
 
-                if reminder_config.play_sound_before {
+                if reminder_config.play_sound_before && reminder_config.custom_sound.is_some() {
                     let _ = self.trigger_audio(config, info, &reminder_config);
                 }
 
@@ -255,7 +256,7 @@ impl Scheduler {
                 };
                 self.emit_alert(payload).await;
 
-                if reminder_config.play_sound_after {
+                if reminder_config.play_sound_after && reminder_config.custom_sound.is_some() {
                     let _ = self.trigger_audio(config, info, &reminder_config);
                 }
 
@@ -278,6 +279,7 @@ impl Scheduler {
                 .decorations(false)
                 .transparent(true)
                 .always_on_top(true)
+                .focused(false)
                 .skip_taskbar(true)
                 .visible(false)
                 .build()

@@ -47,6 +47,23 @@
     "SeventhOfTheNight",
     "TwilightAngle",
   ];
+  const prayerOrder = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"];
+
+  function createDefaultReminder() {
+    return {
+      enabled: true,
+      before_enabled: true,
+      minutes_before: 15,
+      play_sound_before: false,
+      play_adhan: true,
+      after_enabled: true,
+      minutes_after: 0,
+      play_sound_after: false,
+      custom_sound: null,
+      volume: 0.7,
+      show_notification: true,
+    };
+  }
 
   async function loadConfig() {
     // Check if running in Tauri environment
@@ -62,6 +79,11 @@
     try {
       config = await invoke<AppConfig>("get_config");
       if (config) {
+        for (const prayer of prayerOrder) {
+          if (!(prayer in config.reminders)) {
+            config.reminders[prayer] = createDefaultReminder();
+          }
+        }
         for (const settings of Object.values(config.reminders)) {
           if (settings.before_enabled === undefined) {
             settings.before_enabled = true;
@@ -75,6 +97,10 @@
           if (settings.minutes_after < 0) {
             settings.minutes_after = 0;
           }
+          if (!settings.custom_sound) {
+            settings.play_sound_before = false;
+            settings.play_sound_after = false;
+          }
         }
       }
     } catch (e) {
@@ -87,6 +113,12 @@
   async function saveConfig() {
     if (!config) return;
     try {
+      for (const settings of Object.values(config.reminders)) {
+        if (!settings.custom_sound) {
+          settings.play_sound_before = false;
+          settings.play_sound_after = false;
+        }
+      }
       await invoke("save_config", { config });
 
       // Handle autostart
@@ -174,6 +206,8 @@
   function clearAdhanFile(prayer: string) {
     if (config && config.reminders[prayer]) {
       config.reminders[prayer].custom_sound = null;
+      config.reminders[prayer].play_sound_before = false;
+      config.reminders[prayer].play_sound_after = false;
       if (previewingPrayer === prayer) {
         void stopPreview();
       }
@@ -631,7 +665,7 @@
               {/if}
 
               <div class="space-y-4">
-                {#each ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"].filter((p) => p in config!.reminders) as prayer}
+                {#each prayerOrder.filter((p) => p in config!.reminders) as prayer}
                   {@const settings = config!.reminders[prayer]}
                   {@const reminderMinutesId = `reminder-minutes-${prayer}`}
                   <div
@@ -706,10 +740,14 @@
                               <input
                                 type="checkbox"
                                 bind:checked={settings.play_sound_before}
-                                disabled={!settings.before_enabled}
+                                disabled={!settings.before_enabled || !settings.custom_sound}
                                 class="accent-blue-500 w-4 h-4 rounded"
                               />
-                              <span class="text-sm">Play Alert Sound</span>
+                              <span class="text-sm"
+                                >Play Alert Sound {settings.custom_sound
+                                  ? ""
+                                  : "(needs custom audio)"}</span
+                              >
                             </label>
                           </div>
 
@@ -788,10 +826,14 @@
                               <input
                                 type="checkbox"
                                 bind:checked={settings.play_sound_after}
-                                disabled={!settings.after_enabled}
+                                disabled={!settings.after_enabled || !settings.custom_sound}
                                 class="accent-blue-500 w-4 h-4 rounded"
                               />
-                              <span class="text-sm">Play Alert Sound</span>
+                              <span class="text-sm"
+                                >Play Alert Sound {settings.custom_sound
+                                  ? ""
+                                  : "(needs custom audio)"}</span
+                              >
                             </label>
                           </div>
                         </div>

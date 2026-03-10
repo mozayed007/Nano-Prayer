@@ -17,6 +17,7 @@
   let unlisten: UnlistenFn | null = null;
   let unlistenDismissed: UnlistenFn | null = null;
   let audioPlaying = $state(false);
+  let dismissing = $state(false);
 
   async function startListening(retries = 3) {
     try {
@@ -41,15 +42,23 @@
       ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
 
     if (isTauri) {
-      startListening();
-      listen("prayer-alert-dismissed", async () => {
+      void startListening();
+      void listen("prayer-alert-dismissed", async () => {
         activeAlert = null;
         audioPlaying = false;
         const appWindow = getCurrentWindow();
-        await appWindow.hide();
-      }).then((fn) => {
-        unlistenDismissed = fn;
-      });
+        try {
+          await appWindow.hide();
+        } catch (e) {
+          console.warn("Failed to hide alert window on dismiss event", e);
+        }
+      })
+        .then((fn) => {
+          unlistenDismissed = fn;
+        })
+        .catch((e) => {
+          console.error("Failed to listen for dismiss events", e);
+        });
 
       // Global shortcut or Escape to dismiss
       const handleKeydown = (e: KeyboardEvent) => {
@@ -71,6 +80,8 @@
   });
 
   async function dismiss() {
+    if (dismissing) return;
+    dismissing = true;
     activeAlert = null;
     audioPlaying = false;
 
@@ -78,15 +89,33 @@
       await invoke("dismiss_alert");
     } catch (e) {
       console.error("Failed to dismiss alert window", e);
+    } finally {
+      try {
+        await getCurrentWindow().hide();
+      } catch (e) {
+        console.warn("Failed to hide alert window after dismiss", e);
+      }
+      dismissing = false;
     }
   }
 
   async function markPrayed() {
     if (!activeAlert) return;
+    if (dismissing) return;
+    dismissing = true;
     try {
       await invoke("mark_prayer_completed", { prayer: activeAlert.prayer });
     } catch (e) {
       console.error("Failed to mark prayer as completed", e);
+    } finally {
+      activeAlert = null;
+      audioPlaying = false;
+      try {
+        await getCurrentWindow().hide();
+      } catch (e) {
+        console.warn("Failed to hide alert window after prayer completion", e);
+      }
+      dismissing = false;
     }
   }
 
@@ -168,6 +197,12 @@
           </p>
         </div>
       </div>
+      <button
+        class="absolute top-3 right-3 z-20 p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white"
+        onclick={dismiss}
+      >
+        ✕
+      </button>
 
       <!-- Action -->
       <div class="z-10 flex justify-end items-center mt-3 gap-3">
@@ -189,12 +224,14 @@
         <button
           class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 border border-emerald-400/40 hover:border-emerald-300/60 transition-all font-medium rounded-xl px-5 py-2 flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
           onclick={markPrayed}
+          disabled={dismissing}
         >
           I Prayed
         </button>
         <button
           class="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 transition-all font-medium rounded-xl px-5 py-2 flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
           onclick={dismiss}
+          disabled={dismissing}
         >
           Dismiss
         </button>
