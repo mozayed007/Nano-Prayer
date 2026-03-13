@@ -83,11 +83,19 @@ impl Scheduler {
     }
 
     pub async fn run(mut self) {
+        let scheduler_wakeup = self.app.state::<AppState>().scheduler_wakeup.clone();
+
         loop {
             if let Err(e) = self.check().await {
                 tracing::error!("Scheduler error: {}", e);
             }
-            sleep(Duration::from_secs(60)).await;
+
+            if tokio::time::timeout(Duration::from_secs(60), scheduler_wakeup.notified())
+                .await
+                .is_ok()
+            {
+                tracing::info!("Scheduler woken after config update");
+            }
         }
     }
 

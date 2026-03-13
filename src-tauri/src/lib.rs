@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use tauri::menu::{CheckMenuItemBuilder, Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
+use tokio::sync::Notify;
 
 mod audio;
 mod commands;
@@ -35,6 +36,7 @@ pub fn run() {
             city_db: Mutex::new(nano_pray_core::location::CityDatabase::new()),
             prayer_log: Mutex::new(PrayerLog::default()),
             active_alert: Mutex::new(None),
+            scheduler_wakeup: std::sync::Arc::new(Notify::new()),
         })
         .manage(AudioState(std::sync::Arc::new(audio::AudioPlayer::new())))
         .setup(|app| {

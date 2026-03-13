@@ -380,7 +380,7 @@
   class="settings-shell h-full min-h-0 bg-transparent text-[var(--text-main)] p-2 sm:p-4 md:p-6 flex flex-col pt-1 md:pt-2 overflow-hidden"
   in:fade={{ duration: 400 }}
 >
-  <div class="max-w-6xl mx-auto w-full h-full flex flex-col overflow-hidden">
+  <div class="settings-frame mx-auto w-full h-full flex flex-col overflow-hidden">
     <header
       class="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4 mb-3 md:mb-6 relative flex-shrink-0"
     >
@@ -471,7 +471,7 @@
 
         <!-- Sidebar Tabs -->
         <div
-          class="settings-tabs md:w-56 bg-black/10 p-2 sm:p-3 flex md:flex-col gap-1 md:gap-2 border-b md:border-b-0 md:border-r border-white/10 relative z-10 backdrop-blur-md overflow-x-auto md:overflow-x-visible flex-shrink-0"
+          class="settings-tabs md:w-60 lg:w-64 bg-black/10 p-2 sm:p-3 md:p-4 flex md:flex-col gap-1 md:gap-2 border-b md:border-b-0 md:border-r border-white/10 relative z-10 backdrop-blur-md overflow-x-auto md:overflow-x-visible flex-shrink-0"
         >
           {#each tabs as tab}
             <button
@@ -495,7 +495,7 @@
 
         <!-- Content Area -->
         <div
-          class="flex-1 min-h-0 p-3 sm:p-4 md:p-5 md:p-6 bg-transparent overflow-y-auto"
+          class="flex-1 min-h-0 p-3 sm:p-4 md:p-6 lg:p-7 bg-transparent overflow-y-auto"
         >
           {#if activeTab === "location"}
             <div in:fade={{ duration: 200 }}>
@@ -740,16 +740,16 @@
                 </p>
               {/if}
 
-              <div class="space-y-4">
+              <div class="space-y-5">
                 {#each prayerOrder.filter((p) => p in config!.reminders) as prayer}
                   {@const settings = config!.reminders[prayer]}
                   {@const reminderMinutesId = `reminder-minutes-${prayer}`}
                   <div
-                    class="bg-[var(--glass-bg)] rounded-xl border border-[var(--glass-border)] overflow-hidden transition hover:bg-[var(--text-main)]/5"
+                    class="bg-[var(--glass-bg)] rounded-2xl border border-[var(--glass-border)] overflow-hidden transition hover:bg-[var(--text-main)]/5 shadow-[0_18px_45px_rgba(6,14,30,0.18)]"
                   >
                     <button
                       type="button"
-                      class="w-full p-4 flex items-center justify-between bg-transparent"
+                      class="w-full px-5 py-4 lg:px-6 lg:py-5 flex items-center justify-between bg-transparent"
                       onclick={() => (settings.enabled = !settings.enabled)}
                     >
                       <span
@@ -774,71 +774,78 @@
 
                     {#if settings.enabled}
                       <div
-                        class="p-4 space-y-4 border-t border-[var(--glass-border)] bg-[var(--text-main)]/5"
+                        class="p-4 lg:p-6 space-y-4 lg:space-y-5 border-t border-[var(--glass-border)] bg-[var(--text-main)]/5"
                         transition:fade
                       >
-                        <div class="flex flex-col gap-4">
+                        <div class="grid gap-4 lg:gap-5">
                           <!-- Before Reminder -->
                           <div
-                            class="flex flex-col md:flex-row md:items-center gap-4 bg-[var(--text-main)]/5 p-3 rounded-xl border border-[var(--glass-border)]"
+                            class="settings-reminder-panel"
                           >
-                            <label
-                              class="flex-1"
-                              for={`reminder-before-${prayer}`}
-                            >
-                              <span
-                                class="block text-sm font-semibold text-[var(--text-main)] mb-1"
-                                >Before Prayer (Minutes)</span
+                            <div class="min-w-0">
+                              <label
+                                class="block"
+                                for={`reminder-before-${prayer}`}
                               >
-                              <input
-                                id={`reminder-before-${prayer}`}
-                                type="number"
-                                bind:value={settings.minutes_before}
-                                min="0"
-                                max="60"
-                                disabled={!settings.before_enabled}
-                                class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-main)] focus:border-blue-500 outline-none"
-                              />
-                            </label>
-                            <label
-                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
-                            >
-                              <input
-                                type="checkbox"
-                                bind:checked={settings.before_enabled}
-                                class="accent-blue-500 w-4 h-4 rounded"
-                              />
-                              <span class="text-sm">Enable Before Reminder</span>
-                            </label>
-                            <label
-                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
-                            >
-                              <input
-                                type="checkbox"
-                                bind:checked={settings.play_sound_before}
-                                disabled={!settings.before_enabled}
-                                class="accent-blue-500 w-4 h-4 rounded"
-                              />
-                              <span class="text-sm">Play Alert Sound (Beep)</span>
-                            </label>
+                                <span
+                                  class="block text-sm font-semibold text-[var(--text-main)] mb-1"
+                                  >Before Prayer (Minutes)</span
+                                >
+                                <span class="block text-xs text-[var(--text-muted)] mb-3">
+                                  Show a reminder before the prayer time.
+                                </span>
+                                <input
+                                  id={`reminder-before-${prayer}`}
+                                  type="number"
+                                  bind:value={settings.minutes_before}
+                                  min="0"
+                                  max="60"
+                                  disabled={!settings.before_enabled}
+                                  class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2.5 text-[var(--text-main)] focus:border-blue-500 outline-none"
+                                />
+                              </label>
+                            </div>
+                            <div class="settings-reminder-options">
+                              <label
+                                class="settings-toggle-row"
+                              >
+                                <input
+                                  type="checkbox"
+                                  bind:checked={settings.before_enabled}
+                                  class="accent-blue-500 w-4 h-4 rounded"
+                                />
+                                <span class="text-sm">Enable Before Reminder</span>
+                              </label>
+                              <label
+                                class="settings-toggle-row"
+                              >
+                                <input
+                                  type="checkbox"
+                                  bind:checked={settings.play_sound_before}
+                                  disabled={!settings.before_enabled}
+                                  class="accent-blue-500 w-4 h-4 rounded"
+                                />
+                                <span class="text-sm">Play Alert Sound (Beep)</span>
+                              </label>
+                            </div>
                           </div>
 
                           <!-- On Time Reminder -->
                           <div
-                            class="flex flex-col md:flex-row md:items-center gap-4 bg-[var(--text-main)]/5 p-3 rounded-xl border border-[var(--glass-border)]"
+                            class="settings-reminder-panel"
                           >
-                            <div class="flex-1">
+                            <div class="min-w-0">
                               <span
                                 class="block text-sm font-semibold text-[var(--text-main)] mb-1"
                                 >On Time (Adhan)</span
                               >
-                              <span class="text-xs text-[var(--text-muted)]"
+                              <span class="block text-xs text-[var(--text-muted)]"
                                 >Audio file options below when enabled</span
                               >
                             </div>
-                            <div class="flex flex-col gap-2 md:min-w-[180px]">
+                            <div class="settings-reminder-options">
                               <label
-                                class="flex items-center gap-3 cursor-pointer p-1 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)]"
+                                class="settings-toggle-row"
                               >
                                 <input
                                   type="checkbox"
@@ -848,7 +855,7 @@
                                 <span class="text-sm">Show App Popup</span>
                               </label>
                               <label
-                                class="flex items-center gap-3 cursor-pointer p-1 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)]"
+                                class="settings-toggle-row"
                               >
                                 <input
                                   type="checkbox"
@@ -862,47 +869,54 @@
 
                           <!-- After Reminder -->
                           <div
-                            class="flex flex-col md:flex-row md:items-center gap-4 bg-[var(--text-main)]/5 p-3 rounded-xl border border-[var(--glass-border)]"
+                            class="settings-reminder-panel"
                           >
-                            <label
-                              class="flex-1"
-                              for={`reminder-after-${prayer}`}
-                            >
-                              <span
-                                class="block text-sm font-semibold text-[var(--text-main)] mb-1"
-                                >After Prayer (Minutes)</span
+                            <div class="min-w-0">
+                              <label
+                                class="block"
+                                for={`reminder-after-${prayer}`}
                               >
-                              <input
-                                id={`reminder-after-${prayer}`}
-                                type="number"
-                                bind:value={settings.minutes_after}
-                                min="0"
-                                max="60"
-                                disabled={!settings.after_enabled}
-                                class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-main)] focus:border-blue-500 outline-none"
-                              />
-                            </label>
-                            <label
-                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
-                            >
-                              <input
-                                type="checkbox"
-                                bind:checked={settings.after_enabled}
-                                class="accent-blue-500 w-4 h-4 rounded"
-                              />
-                              <span class="text-sm">Enable After Reminder</span>
-                            </label>
-                            <label
-                              class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-[var(--text-main)]/5 transition text-[var(--text-main)] md:min-w-[180px]"
-                            >
-                              <input
-                                type="checkbox"
-                                bind:checked={settings.play_sound_after}
-                                disabled={!settings.after_enabled}
-                                class="accent-blue-500 w-4 h-4 rounded"
-                              />
-                              <span class="text-sm">Play Alert Sound (Beep)</span>
-                            </label>
+                                <span
+                                  class="block text-sm font-semibold text-[var(--text-main)] mb-1"
+                                  >After Prayer (Minutes)</span
+                                >
+                                <span class="block text-xs text-[var(--text-muted)] mb-3">
+                                  Keep a post-prayer reminder active for a short window.
+                                </span>
+                                <input
+                                  id={`reminder-after-${prayer}`}
+                                  type="number"
+                                  bind:value={settings.minutes_after}
+                                  min="0"
+                                  max="60"
+                                  disabled={!settings.after_enabled}
+                                  class="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2.5 text-[var(--text-main)] focus:border-blue-500 outline-none"
+                                />
+                              </label>
+                            </div>
+                            <div class="settings-reminder-options">
+                              <label
+                                class="settings-toggle-row"
+                              >
+                                <input
+                                  type="checkbox"
+                                  bind:checked={settings.after_enabled}
+                                  class="accent-blue-500 w-4 h-4 rounded"
+                                />
+                                <span class="text-sm">Enable After Reminder</span>
+                              </label>
+                              <label
+                                class="settings-toggle-row"
+                              >
+                                <input
+                                  type="checkbox"
+                                  bind:checked={settings.play_sound_after}
+                                  disabled={!settings.after_enabled}
+                                  class="accent-blue-500 w-4 h-4 rounded"
+                                />
+                                <span class="text-sm">Play Alert Sound (Beep)</span>
+                              </label>
+                            </div>
                           </div>
                         </div>
 
@@ -913,7 +927,7 @@
                           </p>
                         {/if}
                         <div
-                          class="bg-[var(--glass-bg)] p-4 rounded-xl border border-amber-500/20 flex flex-col xl:flex-row xl:items-center gap-3 xl:gap-4"
+                          class="settings-sound-panel border-amber-500/20"
                           transition:fade
                         >
                           <div class="flex-1 min-w-0">
@@ -929,7 +943,7 @@
                                 : "Default Classic Alarm"}
                             </div>
                           </div>
-                          <div class="flex flex-wrap gap-2 items-start xl:justify-end">
+                          <div class="settings-action-row">
                             <button
                               type="button"
                               class="px-4 py-2 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-lg text-sm transition font-medium border border-amber-500/20 w-full sm:w-auto text-center"
@@ -958,7 +972,7 @@
 
                         {#if settings.play_adhan}
                           <div
-                            class="bg-[var(--glass-bg)] p-4 rounded-xl border border-[var(--glass-border)] flex flex-col xl:flex-row xl:items-center gap-3 xl:gap-4"
+                            class="settings-sound-panel"
                             transition:fade
                           >
                             <div class="flex-1 min-w-0">
@@ -976,9 +990,7 @@
                                   : "Default App Sound"}
                               </div>
                             </div>
-                            <div
-                              class="flex flex-wrap gap-2 items-start xl:justify-end"
-                            >
+                            <div class="settings-action-row">
                               <button
                                 type="button"
                                 class="px-4 py-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg text-sm transition font-medium border border-blue-500/20 w-full sm:w-auto text-center"
@@ -1265,12 +1277,80 @@
 </div>
 
 <style>
+  .settings-frame {
+    max-width: min(1540px, 100%);
+  }
+
   .settings-tabs {
     scrollbar-width: none;
   }
 
   .settings-tabs::-webkit-scrollbar {
     display: none;
+  }
+
+  .settings-reminder-panel {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid var(--glass-border);
+    background: color-mix(in srgb, var(--text-main) 6%, transparent);
+  }
+
+  .settings-reminder-options {
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+  }
+
+  .settings-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.75rem;
+    border-radius: 0.875rem;
+    color: var(--text-main);
+    transition: background-color 150ms ease;
+  }
+
+  .settings-toggle-row:hover {
+    background: color-mix(in srgb, var(--text-main) 6%, transparent);
+  }
+
+  .settings-sound-panel {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+  }
+
+  .settings-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  @media (min-width: 1024px) {
+    .settings-reminder-panel {
+      grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.9fr);
+      align-items: end;
+      padding: 1.125rem 1.25rem;
+    }
+
+    .settings-sound-panel {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      padding: 1.125rem 1.25rem;
+    }
+
+    .settings-action-row {
+      justify-content: flex-end;
+    }
   }
 
   @media (max-height: 760px) {

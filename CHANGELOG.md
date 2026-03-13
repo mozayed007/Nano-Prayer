@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 - **Dismiss/completion state consistency** - Active alert state is now cleared centrally when dismissing alerts or marking a prayer as completed, keeping both alert UIs in sync.
 - **Reminder sound settings visibility** - The custom reminder sound file section is now always visible in reminder settings instead of only appearing after specific toggles are enabled.
 - **Reminder/adhan settings separation** - Clearing an adhan custom file no longer resets before/after reminder sound options.
+- **Edited reminder tests not re-evaluating immediately** - Saving reminder changes now wakes the scheduler right away, so before/after reminder tests near the current countdown are rechecked without waiting for the next minute tick.
 
 ### Added
 
@@ -21,6 +22,7 @@ All notable changes to this project are documented in this file.
 
 - **Before/after reminder audio behavior** - Before/after alerts now intentionally play a reminder beep/alarm instead of reusing adhan audio logic.
 - **Alert route/layout handling** - Shared layout logic now treats all `/alert` routes consistently, improving the standalone alert window flow.
+- **Settings reminders layout** - The reminders tab now uses a wider, more responsive desktop layout instead of compressing controls into narrow horizontal rows.
 
 ---
 

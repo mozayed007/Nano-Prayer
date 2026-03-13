@@ -7,15 +7,17 @@ use nano_pray_core::statistics::PrayerLog;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
+use tokio::sync::Notify;
 
 pub struct AppState {
     pub config: Mutex<AppConfig>,
     pub city_db: Mutex<CityDatabase>,
     pub prayer_log: Mutex<PrayerLog>,
     pub active_alert: Mutex<Option<ActiveAlertPayload>>,
+    pub scheduler_wakeup: Arc<Notify>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -497,7 +499,10 @@ pub fn save_config(
 ) -> std::result::Result<(), String> {
     let mut current = state.config.lock().map_err(|e| e.to_string())?;
     *current = config;
-    current.save().map_err(|e| e.to_string())
+    current.save().map_err(|e| e.to_string())?;
+    drop(current);
+    state.scheduler_wakeup.notify_one();
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
