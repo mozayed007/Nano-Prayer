@@ -9,6 +9,8 @@ All notable changes to this project are documented in this file.
 - **Popout alert window icon mismatch** - The independent alert window now uses the same native app icon as the main window.
 - **Alert recovery after late-open/reload** - The alert popout now hydrates the currently active alert on load, so an in-flight alert is still shown if the window opens after emission.
 - **Dismiss/completion state consistency** - Active alert state is now cleared centrally when dismissing alerts or marking a prayer as completed, keeping both alert UIs in sync.
+- **Reminder sound settings visibility** - The custom reminder sound file section is now always visible in reminder settings instead of only appearing after specific toggles are enabled.
+- **Reminder/adhan settings separation** - Clearing an adhan custom file no longer resets before/after reminder sound options.
 
 ### Added
 

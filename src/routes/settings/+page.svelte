@@ -201,8 +201,6 @@
   function clearAdhanFile(prayer: string) {
     if (config && config.reminders[prayer]) {
       config.reminders[prayer].custom_sound = null;
-      config.reminders[prayer].play_sound_before = false;
-      config.reminders[prayer].play_sound_after = false;
       if (previewingPrayer === prayer) {
         void stopPreview();
       }
@@ -909,56 +907,54 @@
                         </div>
 
                         <!-- Reminder Beep Sound File (for before/after) -->
-                        {#if settings.before_enabled || settings.after_enabled}
-                          {#if reminderPreviewError}
-                            <p class="text-sm font-medium text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                              {reminderPreviewError}
-                            </p>
-                          {/if}
-                          <div
-                            class="bg-[var(--glass-bg)] p-4 rounded-xl border border-amber-500/20 flex flex-col xl:flex-row xl:items-center gap-3 xl:gap-4"
-                            transition:fade
-                          >
-                            <div class="flex-1 min-w-0">
-                              <div class="text-xs text-amber-400/80 uppercase tracking-wider mb-1 font-semibold">
-                                🔔 Reminder Beep Sound
-                              </div>
-                              <div
-                                class="truncate text-sm font-mono text-[var(--text-main)] bg-[var(--text-main)]/5 p-2 rounded border border-[var(--glass-border)]"
-                                title={settings.custom_reminder_sound || "Default Classic Alarm"}
-                              >
-                                {settings.custom_reminder_sound
-                                  ? settings.custom_reminder_sound.split(/[\\/]/).pop()
-                                  : "Default Classic Alarm"}
-                              </div>
+                        {#if reminderPreviewError}
+                          <p class="text-sm font-medium text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                            {reminderPreviewError}
+                          </p>
+                        {/if}
+                        <div
+                          class="bg-[var(--glass-bg)] p-4 rounded-xl border border-amber-500/20 flex flex-col xl:flex-row xl:items-center gap-3 xl:gap-4"
+                          transition:fade
+                        >
+                          <div class="flex-1 min-w-0">
+                            <div class="text-xs text-amber-400/80 uppercase tracking-wider mb-1 font-semibold">
+                              Reminder Sound File
                             </div>
-                            <div class="flex flex-wrap gap-2 items-start xl:justify-end">
-                              <button
-                                type="button"
-                                class="px-4 py-2 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-lg text-sm transition font-medium border border-amber-500/20 w-full sm:w-auto text-center"
-                                onclick={() => toggleReminderPreview(prayer)}
-                                disabled={reminderPreviewBusy}
-                              >{isPreviewingReminder(prayer) ? "Stop" : "Preview"}</button>
-                              <button
-                                type="button"
-                                class="px-4 py-2 bg-[var(--text-main)]/5 hover:bg-[var(--text-main)]/10 text-[var(--text-main)] rounded-lg text-sm transition font-medium border border-[var(--glass-border)] w-full sm:w-auto text-center"
-                                onclick={() => selectReminderFile(prayer)}
-                              >Browse...</button>
-                              {#if settings.custom_reminder_sound}
-                                <button
-                                  type="button"
-                                  class="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm transition font-medium border border-red-500/20 w-full sm:w-auto text-center"
-                                  onclick={() => clearReminderFile(prayer)}
-                                >Reset</button>
-                              {/if}
-                              {#if isPreviewingReminder(prayer)}
-                                <span class="px-3 py-2 text-xs font-semibold rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 w-full sm:w-auto text-center">
-                                  Preview playing
-                                </span>
-                              {/if}
+                            <div
+                              class="truncate text-sm font-mono text-[var(--text-main)] bg-[var(--text-main)]/5 p-2 rounded border border-[var(--glass-border)]"
+                              title={settings.custom_reminder_sound || "Default Classic Alarm"}
+                            >
+                              {settings.custom_reminder_sound
+                                ? settings.custom_reminder_sound.split(/[\\/]/).pop()
+                                : "Default Classic Alarm"}
                             </div>
                           </div>
-                        {/if}
+                          <div class="flex flex-wrap gap-2 items-start xl:justify-end">
+                            <button
+                              type="button"
+                              class="px-4 py-2 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-lg text-sm transition font-medium border border-amber-500/20 w-full sm:w-auto text-center"
+                              onclick={() => toggleReminderPreview(prayer)}
+                              disabled={reminderPreviewBusy}
+                            >{isPreviewingReminder(prayer) ? "Stop" : "Preview"}</button>
+                            <button
+                              type="button"
+                              class="px-4 py-2 bg-[var(--text-main)]/5 hover:bg-[var(--text-main)]/10 text-[var(--text-main)] rounded-lg text-sm transition font-medium border border-[var(--glass-border)] w-full sm:w-auto text-center"
+                              onclick={() => selectReminderFile(prayer)}
+                            >Browse...</button>
+                            {#if settings.custom_reminder_sound}
+                              <button
+                                type="button"
+                                class="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm transition font-medium border border-red-500/20 w-full sm:w-auto text-center"
+                                onclick={() => clearReminderFile(prayer)}
+                              >Reset</button>
+                            {/if}
+                            {#if isPreviewingReminder(prayer)}
+                              <span class="px-3 py-2 text-xs font-semibold rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 w-full sm:w-auto text-center">
+                                Preview playing
+                              </span>
+                            {/if}
+                          </div>
+                        </div>
 
                         {#if settings.play_adhan}
                           <div
