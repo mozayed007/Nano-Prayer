@@ -1,11 +1,12 @@
 //! Tauri command handlers
 
 use crate::audio::AudioState;
+use chrono::{Datelike, Duration, Local, NaiveDate};
 use nano_pray_core::location::CityDatabase;
 use nano_pray_core::prelude::*;
 use nano_pray_core::statistics::PrayerLog;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
@@ -270,11 +271,36 @@ pub async fn dismiss_alert(
 
 #[derive(Debug, Serialize)]
 pub struct StatisticsResponse {
+    pub today: PeriodStatistics,
+    pub week: PeriodStatistics,
+    pub month: PeriodStatistics,
+    pub year: PeriodStatistics,
+    pub all_time: PeriodStatistics,
     pub total_prayers_logged: u32,
-    pub completion_rate_percentage: f32,
     pub current_streak: u32,
     pub longest_streak: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PeriodStatistics {
+    pub label: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub completed_count: u32,
+    pub expected_count: u32,
+    pub completion_rate_percentage: f32,
     pub per_prayer_completion: HashMap<String, f32>,
+    pub per_prayer_completed: HashMap<String, u32>,
+    pub per_prayer_expected: HashMap<String, u32>,
+    pub timeline: Vec<TimelinePoint>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TimelinePoint {
+    pub label: String,
+    pub completed_count: u32,
+    pub expected_count: u32,
+    pub completion_rate_percentage: f32,
 }
 
 fn parse_prayer_name(prayer: &str) -> Option<Prayer> {
@@ -330,97 +356,293 @@ pub fn get_active_alert(
 #[tauri::command]
 pub fn get_statistics(state: State<'_, AppState>) -> std::result::Result<StatisticsResponse, String> {
     let log = state.prayer_log.lock().map_err(|e| e.to_string())?;
-    let entries = log.entries();
-    let total = entries.len() as u32;
-    let completed = entries.iter().filter(|entry| entry.completed).count() as u32;
-    let rate = if total > 0 {
-        (completed as f32 / total as f32) * 100.0
-    } else {
-        0.0
-    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let today = Local::now().date_naive();
+    let start_of_week = today - Duration::days(today.weekday().num_days_from_monday() as i64);
+    let start_of_month = today.with_day(1).ok_or("Invalid current month")?;
+    let start_of_year = today.with_ordinal(1).ok_or("Invalid current year")?;
+    let all_time_start = log.entries().iter().map(|entry| entry.date).min().unwrap_or(today);
 
-    let mut per_prayer_totals: HashMap<String, u32> = HashMap::new();
-    let mut per_prayer_completed: HashMap<String, u32> = HashMap::new();
-    for entry in entries {
-        let name = entry.prayer.name().to_string();
-        *per_prayer_totals.entry(name.clone()).or_insert(0) += 1;
-        if entry.completed {
-            *per_prayer_completed.entry(name).or_insert(0) += 1;
-        }
-    }
-    let all_names = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
-    let mut per_prayer_completion: HashMap<String, f32> = HashMap::new();
-    for name in all_names {
-        let t = per_prayer_totals.get(name).copied().unwrap_or(0);
-        let c = per_prayer_completed.get(name).copied().unwrap_or(0);
-        let value = if t > 0 {
-            (c as f32 / t as f32) * 100.0
-        } else {
-            0.0
-        };
-        per_prayer_completion.insert(name.to_string(), value);
-    }
+    let day_stats = build_day_statistics(log.entries(), &config, all_time_start, today)?;
 
-    let mut by_day: HashMap<chrono::NaiveDate, (u32, u32)> = HashMap::new();
-    for entry in entries {
-        let day = by_day.entry(entry.date).or_insert((0, 0));
-        day.0 += 1;
-        if entry.completed {
-            day.1 += 1;
-        }
-    }
-    let mut days: Vec<chrono::NaiveDate> = by_day.keys().copied().collect();
-    days.sort_unstable();
-
-    let mut longest_streak = 0_u32;
-    let mut running_longest = 0_u32;
-    let mut previous: Option<chrono::NaiveDate> = None;
-    for day in &days {
-        let (tracked, done) = by_day.get(day).copied().unwrap_or((0, 0));
-        let successful = tracked > 0 && tracked == done;
-        if !successful {
-            running_longest = 0;
-            previous = Some(*day);
-            continue;
-        }
-        let continues = previous
-            .map(|prev| *day == prev + chrono::Duration::days(1))
-            .unwrap_or(false);
-        if continues {
-            running_longest += 1;
-        } else {
-            running_longest = 1;
-        }
-        if running_longest > longest_streak {
-            longest_streak = running_longest;
-        }
-        previous = Some(*day);
-    }
-
-    let mut current_streak = 0_u32;
-    let mut expected = chrono::Local::now().date_naive();
-    for day in days.iter().rev() {
-        if *day > expected {
-            continue;
-        }
-        if *day != expected {
-            break;
-        }
-        let (tracked, done) = by_day.get(day).copied().unwrap_or((0, 0));
-        if tracked == 0 || tracked != done {
-            break;
-        }
-        current_streak += 1;
-        expected -= chrono::Duration::days(1);
-    }
+    let today_stats = build_period_statistics("Today", &day_stats, today, today);
+    let week_stats = build_period_statistics("This Week", &day_stats, start_of_week, today);
+    let month_stats = build_period_statistics("This Month", &day_stats, start_of_month, today);
+    let year_stats = build_period_statistics("This Year", &day_stats, start_of_year, today);
+    let all_time_stats = build_period_statistics("All Time", &day_stats, all_time_start, today);
+    let (current_streak, longest_streak) = build_streaks(&day_stats, all_time_start, today);
 
     Ok(StatisticsResponse {
-        total_prayers_logged: total,
-        completion_rate_percentage: (rate * 10.0).round() / 10.0,
+        today: today_stats,
+        week: week_stats,
+        month: month_stats,
+        year: year_stats,
+        all_time: all_time_stats,
+        total_prayers_logged: log.entries().len() as u32,
         current_streak,
         longest_streak,
-        per_prayer_completion,
     })
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct DayStats {
+    completed_count: u32,
+    expected_count: u32,
+    per_prayer_completed: [u32; 6],
+    per_prayer_expected: [u32; 6],
+}
+
+const TRACKED_PRAYERS: [Prayer; 6] = [
+    Prayer::Fajr,
+    Prayer::Sunrise,
+    Prayer::Dhuhr,
+    Prayer::Asr,
+    Prayer::Maghrib,
+    Prayer::Isha,
+];
+
+fn prayer_index(prayer: Prayer) -> usize {
+    match prayer {
+        Prayer::Fajr => 0,
+        Prayer::Sunrise => 1,
+        Prayer::Dhuhr => 2,
+        Prayer::Asr => 3,
+        Prayer::Maghrib => 4,
+        Prayer::Isha => 5,
+    }
+}
+
+fn build_day_statistics(
+    entries: &[nano_pray_core::statistics::PrayerEntry],
+    config: &AppConfig,
+    start: NaiveDate,
+    end: NaiveDate,
+) -> std::result::Result<BTreeMap<NaiveDate, DayStats>, String> {
+    let (lat, lng) = if let Some(loc) = config.current_location() {
+        (loc.coordinates.latitude, loc.coordinates.longitude)
+    } else {
+        (21.4225, 39.8262)
+    };
+
+    let calc = PrayerCalculator::new()
+        .with_method(config.calculation_method)
+        .with_madhab(config.asr_madhab)
+        .with_high_latitude_rule(config.high_latitude_rule)
+        .with_adjustments(config.prayer_adjustments);
+
+    let now = Local::now();
+    let mut stats = BTreeMap::new();
+    let mut date = start;
+
+    while date <= end {
+        let mut day = DayStats::default();
+        let prayer_times = calc
+            .calculate(date, lat, lng, None)
+            .map_err(|e| e.to_string())?;
+
+        for prayer_info in &prayer_times.prayers {
+            let due = if date < end {
+                true
+            } else {
+                prayer_info.time <= now
+            };
+
+            if due {
+                let idx = prayer_index(prayer_info.prayer);
+                day.expected_count += 1;
+                day.per_prayer_expected[idx] += 1;
+            }
+        }
+
+        for entry in entries.iter().filter(|entry| entry.date == date && entry.completed) {
+            let idx = prayer_index(entry.prayer);
+            day.completed_count += 1;
+            day.per_prayer_completed[idx] += 1;
+        }
+
+        stats.insert(date, day);
+        date += Duration::days(1);
+    }
+
+    Ok(stats)
+}
+
+fn build_period_statistics(
+    label: &str,
+    day_stats: &BTreeMap<NaiveDate, DayStats>,
+    start: NaiveDate,
+    end: NaiveDate,
+) -> PeriodStatistics {
+    let mut completed_count = 0_u32;
+    let mut expected_count = 0_u32;
+    let mut per_prayer_completed = [0_u32; 6];
+    let mut per_prayer_expected = [0_u32; 6];
+
+    let mut days: Vec<(NaiveDate, DayStats)> = Vec::new();
+    for (date, stats) in day_stats.range(start..=end) {
+        completed_count += stats.completed_count;
+        expected_count += stats.expected_count;
+
+        for idx in 0..TRACKED_PRAYERS.len() {
+            per_prayer_completed[idx] += stats.per_prayer_completed[idx];
+            per_prayer_expected[idx] += stats.per_prayer_expected[idx];
+        }
+
+        days.push((*date, *stats));
+    }
+
+    let completion_rate_percentage = percentage(completed_count, expected_count);
+    let per_prayer_completion = TRACKED_PRAYERS
+        .iter()
+        .enumerate()
+        .map(|(idx, prayer)| {
+            (
+                prayer.name().to_string(),
+                percentage(per_prayer_completed[idx], per_prayer_expected[idx]),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    let per_prayer_completed_map = TRACKED_PRAYERS
+        .iter()
+        .enumerate()
+        .map(|(idx, prayer)| (prayer.name().to_string(), per_prayer_completed[idx]))
+        .collect::<HashMap<_, _>>();
+
+    let per_prayer_expected_map = TRACKED_PRAYERS
+        .iter()
+        .enumerate()
+        .map(|(idx, prayer)| (prayer.name().to_string(), per_prayer_expected[idx]))
+        .collect::<HashMap<_, _>>();
+
+    PeriodStatistics {
+        label: label.to_string(),
+        start_date: start.to_string(),
+        end_date: end.to_string(),
+        completed_count,
+        expected_count,
+        completion_rate_percentage,
+        per_prayer_completion,
+        per_prayer_completed: per_prayer_completed_map,
+        per_prayer_expected: per_prayer_expected_map,
+        timeline: build_timeline(&days),
+    }
+}
+
+fn build_timeline(days: &[(NaiveDate, DayStats)]) -> Vec<TimelinePoint> {
+    if days.is_empty() {
+        return Vec::new();
+    }
+
+    if days.len() <= 14 {
+        return days
+            .iter()
+            .map(|(date, stats)| TimelinePoint {
+                label: date.format("%b %-d").to_string(),
+                completed_count: stats.completed_count,
+                expected_count: stats.expected_count,
+                completion_rate_percentage: percentage(stats.completed_count, stats.expected_count),
+            })
+            .collect();
+    }
+
+    if days.len() <= 62 {
+        let mut buckets: BTreeMap<NaiveDate, (u32, u32)> = BTreeMap::new();
+        for (date, stats) in days {
+            let week_start = *date - Duration::days(date.weekday().num_days_from_monday() as i64);
+            let bucket = buckets.entry(week_start).or_insert((0, 0));
+            bucket.0 += stats.completed_count;
+            bucket.1 += stats.expected_count;
+        }
+
+        return buckets
+            .into_iter()
+            .map(|(week_start, (completed_count, expected_count))| TimelinePoint {
+                label: format!("Week of {}", week_start.format("%b %-d")),
+                completed_count,
+                expected_count,
+                completion_rate_percentage: percentage(completed_count, expected_count),
+            })
+            .collect();
+    }
+
+    let mut buckets: BTreeMap<(i32, u32), (u32, u32)> = BTreeMap::new();
+    for (date, stats) in days {
+        let bucket = buckets.entry((date.year(), date.month())).or_insert((0, 0));
+        bucket.0 += stats.completed_count;
+        bucket.1 += stats.expected_count;
+    }
+
+    buckets
+        .into_iter()
+        .map(|((year, month), (completed_count, expected_count))| {
+            let label = NaiveDate::from_ymd_opt(year, month, 1)
+                .map(|date| date.format("%b %Y").to_string())
+                .unwrap_or_else(|| format!("{year}-{month:02}"));
+
+            TimelinePoint {
+                label,
+                completed_count,
+                expected_count,
+                completion_rate_percentage: percentage(completed_count, expected_count),
+            }
+        })
+        .collect()
+}
+
+fn build_streaks(
+    day_stats: &BTreeMap<NaiveDate, DayStats>,
+    start: NaiveDate,
+    end: NaiveDate,
+) -> (u32, u32) {
+    let mut longest = 0_u32;
+    let mut running = 0_u32;
+
+    let mut date = start;
+    while date <= end {
+        let stats = day_stats.get(&date).copied().unwrap_or_default();
+        if stats.expected_count > 0 && stats.completed_count == stats.expected_count {
+            running += 1;
+            longest = longest.max(running);
+        } else if stats.expected_count > 0 {
+            running = 0;
+        }
+        date += Duration::days(1);
+    }
+
+    let mut current = 0_u32;
+    let mut cursor = end;
+    loop {
+        let stats = day_stats.get(&cursor).copied().unwrap_or_default();
+        if stats.expected_count == 0 {
+            if cursor == start {
+                break;
+            }
+            cursor -= Duration::days(1);
+            continue;
+        }
+
+        if stats.completed_count == stats.expected_count {
+            current += 1;
+        } else {
+            break;
+        }
+
+        if cursor == start {
+            break;
+        }
+        cursor -= Duration::days(1);
+    }
+
+    (current, longest)
+}
+
+fn percentage(completed: u32, expected: u32) -> f32 {
+    if expected == 0 {
+        0.0
+    } else {
+        (((completed as f32 / expected as f32) * 1000.0).round()) / 10.0
+    }
 }
 
 #[tauri::command]

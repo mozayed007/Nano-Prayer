@@ -12,6 +12,8 @@ All notable changes to this project are documented in this file.
 - **Reminder sound settings visibility** - The custom reminder sound file section is now always visible in reminder settings instead of only appearing after specific toggles are enabled.
 - **Reminder/adhan settings separation** - Clearing an adhan custom file no longer resets before/after reminder sound options.
 - **Edited reminder tests not re-evaluating immediately** - Saving reminder changes now wakes the scheduler right away, so before/after reminder tests near the current countdown are rechecked without waiting for the next minute tick.
+- **Statistics period perspective** - Prayer analytics now separate daily, weekly, monthly, yearly, and all-time views instead of labeling lifetime percentages as a daily breakdown.
+- **Statistics denominator accuracy** - Completion rates are now measured against prayers that were actually due in the selected period, rather than only against whichever entries happened to be logged.
 
 ### Added
 
@@ -23,6 +25,7 @@ All notable changes to this project are documented in this file.
 - **Before/after reminder audio behavior** - Before/after alerts now intentionally play a reminder beep/alarm instead of reusing adhan audio logic.
 - **Alert route/layout handling** - Shared layout logic now treats all `/alert` routes consistently, improving the standalone alert window flow.
 - **Settings reminders layout** - The reminders tab now uses a wider, more responsive desktop layout instead of compressing controls into narrow horizontal rows.
+- **Analytics dashboard** - The stats page now includes selectable period cards, trend timelines, and per-prayer breakdowns for the chosen period.
 
 ---
 
