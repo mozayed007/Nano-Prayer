@@ -60,6 +60,7 @@
       minutes_after: 0,
       play_sound_after: false,
       custom_sound: null,
+      custom_reminder_sound: null,
       volume: 0.7,
       show_notification: true,
     };
@@ -97,9 +98,9 @@
           if (settings.minutes_after < 0) {
             settings.minutes_after = 0;
           }
-          if (!settings.custom_sound) {
-            settings.play_sound_before = false;
-            settings.play_sound_after = false;
+          // Ensure new field
+          if (settings.custom_reminder_sound === undefined) {
+            settings.custom_reminder_sound = null;
           }
         }
       }
@@ -113,12 +114,6 @@
   async function saveConfig() {
     if (!config) return;
     try {
-      for (const settings of Object.values(config.reminders)) {
-        if (!settings.custom_sound) {
-          settings.play_sound_before = false;
-          settings.play_sound_after = false;
-        }
-      }
       await invoke("save_config", { config });
 
       // Handle autostart
@@ -214,6 +209,37 @@
     }
   }
 
+  async function selectReminderFile(prayer: string) {
+    if (!config) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: "Audio Files",
+            extensions: ["mp3", "wav", "ogg"],
+          },
+        ],
+      });
+      if (selected && typeof selected === "string") {
+        if (config.reminders[prayer]) {
+          config.reminders[prayer].custom_reminder_sound = selected;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function clearReminderFile(prayer: string) {
+    if (config && config.reminders[prayer]) {
+      config.reminders[prayer].custom_reminder_sound = null;
+      if (previewingReminderPrayer === prayer) {
+        void stopReminderPreview();
+      }
+    }
+  }
+
   let previewingPrayer = $state<string | null>(null);
   let previewPaused = $state(false);
   let previewBusy = $state(false);
@@ -289,6 +315,58 @@
       void stopPreview();
     }
   });
+
+  let previewingReminderPrayer = $state<string | null>(null);
+  let reminderPreviewBusy = $state(false);
+  let reminderPreviewError = $state("");
+
+  function isPreviewingReminder(prayer: string): boolean {
+    return previewingReminderPrayer === prayer;
+  }
+
+  async function toggleReminderPreview(prayer: string) {
+    if (!config) return;
+    if (reminderPreviewBusy) return;
+    reminderPreviewBusy = true;
+    reminderPreviewError = "";
+
+    try {
+      if (previewingReminderPrayer === prayer) {
+        await invoke("stop_audio").catch(() => {});
+        previewingReminderPrayer = null;
+        return;
+      }
+
+      // Stop any currently playing preview before switching.
+      await invoke("stop_audio").catch(() => {});
+
+      const settings = config.reminders[prayer];
+      await invoke("play_reminder_sound", {
+        customPath: settings?.custom_reminder_sound ?? null,
+        volume: config.audio.global_volume,
+      });
+
+      previewingReminderPrayer = prayer;
+    } catch (e) {
+      reminderPreviewError = `Reminder preview failed: ${String(e)}`;
+      previewingReminderPrayer = null;
+    } finally {
+      reminderPreviewBusy = false;
+    }
+  }
+
+  async function stopReminderPreview() {
+    if (reminderPreviewBusy) return;
+    reminderPreviewBusy = true;
+    try {
+      await invoke("stop_audio");
+    } catch (e) {
+      reminderPreviewError = `Failed to stop: ${String(e)}`;
+    } finally {
+      previewingReminderPrayer = null;
+      reminderPreviewBusy = false;
+    }
+  }
 
   onMount(loadConfig);
   onDestroy(() => {
@@ -740,14 +818,10 @@
                               <input
                                 type="checkbox"
                                 bind:checked={settings.play_sound_before}
-                                disabled={!settings.before_enabled || !settings.custom_sound}
+                                disabled={!settings.before_enabled}
                                 class="accent-blue-500 w-4 h-4 rounded"
                               />
-                              <span class="text-sm"
-                                >Play Alert Sound {settings.custom_sound
-                                  ? ""
-                                  : "(needs custom audio)"}</span
-                              >
+                              <span class="text-sm">Play Alert Sound (Beep)</span>
                             </label>
                           </div>
 
@@ -826,17 +900,65 @@
                               <input
                                 type="checkbox"
                                 bind:checked={settings.play_sound_after}
-                                disabled={!settings.after_enabled || !settings.custom_sound}
+                                disabled={!settings.after_enabled}
                                 class="accent-blue-500 w-4 h-4 rounded"
                               />
-                              <span class="text-sm"
-                                >Play Alert Sound {settings.custom_sound
-                                  ? ""
-                                  : "(needs custom audio)"}</span
-                              >
+                              <span class="text-sm">Play Alert Sound (Beep)</span>
                             </label>
                           </div>
                         </div>
+
+                        <!-- Reminder Beep Sound File (for before/after) -->
+                        {#if settings.before_enabled || settings.after_enabled}
+                          {#if reminderPreviewError}
+                            <p class="text-sm font-medium text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                              {reminderPreviewError}
+                            </p>
+                          {/if}
+                          <div
+                            class="bg-[var(--glass-bg)] p-4 rounded-xl border border-amber-500/20 flex flex-col xl:flex-row xl:items-center gap-3 xl:gap-4"
+                            transition:fade
+                          >
+                            <div class="flex-1 min-w-0">
+                              <div class="text-xs text-amber-400/80 uppercase tracking-wider mb-1 font-semibold">
+                                🔔 Reminder Beep Sound
+                              </div>
+                              <div
+                                class="truncate text-sm font-mono text-[var(--text-main)] bg-[var(--text-main)]/5 p-2 rounded border border-[var(--glass-border)]"
+                                title={settings.custom_reminder_sound || "Default Classic Alarm"}
+                              >
+                                {settings.custom_reminder_sound
+                                  ? settings.custom_reminder_sound.split(/[\\/]/).pop()
+                                  : "Default Classic Alarm"}
+                              </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2 items-start xl:justify-end">
+                              <button
+                                type="button"
+                                class="px-4 py-2 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 rounded-lg text-sm transition font-medium border border-amber-500/20 w-full sm:w-auto text-center"
+                                onclick={() => toggleReminderPreview(prayer)}
+                                disabled={reminderPreviewBusy}
+                              >{isPreviewingReminder(prayer) ? "Stop" : "Preview"}</button>
+                              <button
+                                type="button"
+                                class="px-4 py-2 bg-[var(--text-main)]/5 hover:bg-[var(--text-main)]/10 text-[var(--text-main)] rounded-lg text-sm transition font-medium border border-[var(--glass-border)] w-full sm:w-auto text-center"
+                                onclick={() => selectReminderFile(prayer)}
+                              >Browse...</button>
+                              {#if settings.custom_reminder_sound}
+                                <button
+                                  type="button"
+                                  class="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm transition font-medium border border-red-500/20 w-full sm:w-auto text-center"
+                                  onclick={() => clearReminderFile(prayer)}
+                                >Reset</button>
+                              {/if}
+                              {#if isPreviewingReminder(prayer)}
+                                <span class="px-3 py-2 text-xs font-semibold rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 w-full sm:w-auto text-center">
+                                  Preview playing
+                                </span>
+                              {/if}
+                            </div>
+                          </div>
+                        {/if}
 
                         {#if settings.play_adhan}
                           <div

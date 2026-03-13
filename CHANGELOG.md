@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.4] - 2026-03-13
+
+### Fixed
+
+- **Popout alert window icon mismatch** - The independent alert window now uses the same native app icon as the main window.
+- **Alert recovery after late-open/reload** - The alert popout now hydrates the currently active alert on load, so an in-flight alert is still shown if the window opens after emission.
+- **Dismiss/completion state consistency** - Active alert state is now cleared centrally when dismissing alerts or marking a prayer as completed, keeping both alert UIs in sync.
+
+### Added
+
+- **Dedicated before/after reminder sound support** - Reminder settings now support a separate custom beep/alarm file from the on-time adhan audio.
+- **Reminder sound preview** - Settings now let you preview the before/after reminder sound, including the embedded classic alarm fallback.
+
+### Updated
+
+- **Before/after reminder audio behavior** - Before/after alerts now intentionally play a reminder beep/alarm instead of reusing adhan audio logic.
+- **Alert route/layout handling** - Shared layout logic now treats all `/alert` routes consistently, improving the standalone alert window flow.
+
+---
+
 ## [0.1.3] - 2026-03-10
 
 ### Fixed

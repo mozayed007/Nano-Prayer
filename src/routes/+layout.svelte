@@ -160,7 +160,7 @@
       </button>
     </div>
   </div>
-{:else if ($page.url.pathname as string) === "/alert"}
+{:else if ($page.url.pathname as string).startsWith("/alert")}
   <main
     class="w-screen h-screen overflow-hidden overflow-y-hidden text-[var(--text-main)] {$theme}"
   >

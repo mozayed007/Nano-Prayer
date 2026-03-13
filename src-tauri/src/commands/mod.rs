@@ -15,6 +15,15 @@ pub struct AppState {
     pub config: Mutex<AppConfig>,
     pub city_db: Mutex<CityDatabase>,
     pub prayer_log: Mutex<PrayerLog>,
+    pub active_alert: Mutex<Option<ActiveAlertPayload>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ActiveAlertPayload {
+    pub prayer: String,
+    pub alert_type: String,
+    pub title: String,
+    pub body: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -218,10 +227,36 @@ pub async fn stop_audio(state: State<'_, AudioState>) -> std::result::Result<(),
 }
 
 #[tauri::command]
+pub async fn play_reminder_sound(
+    state: State<'_, AudioState>,
+    custom_path: Option<String>,
+    volume: Option<f32>,
+) -> std::result::Result<(), String> {
+    let volume = volume.unwrap_or(1.0).clamp(0.0, 1.0);
+
+    if let Some(path_str) = custom_path.filter(|p| !p.trim().is_empty()) {
+        let path = PathBuf::from(path_str);
+        if !path.exists() {
+            return Err(format!("Audio file not found: {}", path.display()));
+        }
+        state.inner().0.play_file(path, volume)?;
+    } else {
+        let bytes = include_bytes!("../../assets/classic_alarm.mp3").as_slice();
+        state.inner().0.play_embedded(bytes, volume)?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn dismiss_alert(
     app: tauri::AppHandle,
+    app_state: State<'_, AppState>,
     state: State<'_, AudioState>,
 ) -> std::result::Result<(), String> {
+    if let Ok(mut guard) = app_state.active_alert.lock() {
+        *guard = None;
+    }
     state.inner().0.stop();
     app.emit("prayer-alert-dismissed", ())
         .map_err(|e| e.to_string())?;
@@ -265,6 +300,9 @@ pub fn mark_prayer_completed(
     log.mark_completed(today, parsed);
     log.save().map_err(|e| e.to_string())?;
     drop(log);
+    if let Ok(mut guard) = state.active_alert.lock() {
+        *guard = None;
+    }
     audio_state.inner().0.stop();
     app.emit("statistics-updated", ())
         .map_err(|e| e.to_string())?;
@@ -274,6 +312,17 @@ pub fn mark_prayer_completed(
         let _ = alert_win.hide();
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_active_alert(
+    state: State<'_, AppState>,
+) -> std::result::Result<Option<ActiveAlertPayload>, String> {
+    state
+        .active_alert
+        .lock()
+        .map_err(|e| e.to_string())
+        .map(|payload| payload.clone())
 }
 
 #[tauri::command]

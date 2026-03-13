@@ -43,6 +43,15 @@
 
     if (isTauri) {
       void startListening();
+      void invoke<PrayerAlertPayload | null>("get_active_alert")
+        .then((payload) => {
+          if (!payload) return;
+          activeAlert = payload;
+          audioPlaying = payload.alert_type === "on_time";
+        })
+        .catch((e) => {
+          console.warn("Failed to hydrate active alert payload", e);
+        });
       void listen("prayer-alert-dismissed", async () => {
         activeAlert = null;
         audioPlaying = false;
@@ -147,7 +156,16 @@
 </svelte:head>
 
 <!-- Borderless transparent canvas -->
-<main class="w-full h-full bg-transparent p-3 flex items-center justify-center overflow-hidden">
+<main
+  class="w-full h-full bg-transparent p-3 flex items-center justify-center overflow-hidden relative"
+>
+  <button
+    class="absolute top-2 right-2 z-30 p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white"
+    onclick={dismiss}
+    aria-label="Close alert overlay"
+  >
+    ✕
+  </button>
   {#if activeAlert}
     <div
       class="relative w-full h-full {getBackgroundColor(
@@ -162,7 +180,7 @@
       ></div>
 
       <div class="z-10 flex gap-4 items-start relative pointer-events-none">
-        <!-- Icon -->
+        <!-- Icon: Kaaba/Mosque -->
         <div
           class="bg-blue-500/20 p-3 rounded-full border border-blue-400/30 flex-shrink-0 flex items-center justify-center"
         >
@@ -173,15 +191,19 @@
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="1.8"
             stroke-linecap="round"
             stroke-linejoin="round"
             class="text-blue-300"
           >
-            <path d="M10.268 21a2 2 0 0 0 3.464 0" />
-            <path
-              d="M22 8c0-2.3-.8-4.3-2-6-1.5 2.5-3 3-5 3s-3.5-.5-5-3c-1.2 1.7-2 3.7-2 6 0 5-2 6-2 6h16s-2-1-2-6Z"
-            />
+            <!-- Kaaba cube body -->
+            <rect x="4" y="11" width="16" height="10" rx="0.5" />
+            <!-- Kiswah band (decorative stripe) -->
+            <line x1="4" y1="15" x2="20" y2="15" />
+            <!-- Arch / dome above Kaaba -->
+            <path d="M8 11 Q12 4 16 11" />
+            <!-- Ground line -->
+            <line x1="2" y1="21" x2="22" y2="21" />
           </svg>
         </div>
 
@@ -197,13 +219,6 @@
           </p>
         </div>
       </div>
-      <button
-        class="absolute top-3 right-3 z-20 p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white"
-        onclick={dismiss}
-      >
-        ✕
-      </button>
-
       <!-- Action -->
       <div class="z-10 flex justify-end items-center mt-3 gap-3">
         {#if audioPlaying}
@@ -244,10 +259,6 @@
       <div class="text-center font-medium animate-pulse">
         Waiting for alert...
       </div>
-      <button
-        class="absolute top-2 right-2 p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white"
-        onclick={dismiss}>✕</button
-      >
     </div>
   {/if}
 </main>

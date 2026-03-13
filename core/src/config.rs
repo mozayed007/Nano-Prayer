@@ -44,7 +44,11 @@ pub struct ReminderConfig {
     pub minutes_after: i32,
     #[serde(default)]
     pub play_sound_after: bool,
+    /// Adhan audio file (played on-time)
     pub custom_sound: Option<PathBuf>,
+    /// Beep/alarm audio file for before/after reminders (None = embedded beep)
+    #[serde(default)]
+    pub custom_reminder_sound: Option<PathBuf>,
     pub volume: f32,
     pub show_notification: bool,
 }
@@ -61,6 +65,7 @@ impl Default for ReminderConfig {
             minutes_after: 0,
             play_sound_after: false,
             custom_sound: None,
+            custom_reminder_sound: None,
             volume: 0.7,
             show_notification: true,
         }

@@ -34,6 +34,7 @@ pub fn run() {
             config: Mutex::new(nano_pray_core::config::AppConfig::default()),
             city_db: Mutex::new(nano_pray_core::location::CityDatabase::new()),
             prayer_log: Mutex::new(PrayerLog::default()),
+            active_alert: Mutex::new(None),
         })
         .manage(AudioState(std::sync::Arc::new(audio::AudioPlayer::new())))
         .setup(|app| {
@@ -169,8 +170,10 @@ pub fn run() {
             commands::get_hijri_date,
             commands::send_notification,
             commands::play_adhan,
+            commands::play_reminder_sound,
             commands::stop_audio,
             commands::dismiss_alert,
+            commands::get_active_alert,
             commands::mark_prayer_completed,
             commands::pause_audio,
             commands::resume_audio,

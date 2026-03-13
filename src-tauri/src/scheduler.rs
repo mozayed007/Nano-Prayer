@@ -1,5 +1,5 @@
 use crate::audio::AudioState;
-use crate::commands::AppState;
+use crate::commands::{ActiveAlertPayload, AppState};
 use chrono::{DateTime, Local, NaiveDate};
 use nano_pray_core::config::{AppConfig, ReminderConfig};
 use nano_pray_core::prayer::{Prayer, PrayerCalculator, PrayerInfo};
@@ -41,6 +41,7 @@ struct ReminderSignature {
     minutes_after: i32,
     play_sound_after: bool,
     custom_sound: Option<String>,
+    custom_reminder_sound: Option<String>,
     volume_bits: u32,
     show_notification: bool,
 }
@@ -58,6 +59,10 @@ impl ReminderSignature {
             play_sound_after: config.play_sound_after,
             custom_sound: config
                 .custom_sound
+                .as_ref()
+                .map(|path| path.to_string_lossy().to_string()),
+            custom_reminder_sound: config
+                .custom_reminder_sound
                 .as_ref()
                 .map(|path| path.to_string_lossy().to_string()),
             volume_bits: config.volume.to_bits(),
@@ -191,8 +196,8 @@ impl Scheduler {
                 };
                 self.emit_alert(payload).await;
 
-                if reminder_config.play_sound_before && reminder_config.custom_sound.is_some() {
-                    let _ = self.trigger_audio(config, info, &reminder_config);
+                if reminder_config.play_sound_before {
+                    let _ = self.trigger_beep(config, info, &reminder_config);
                 }
 
                 self.fired_reminders.insert(key);
@@ -221,7 +226,7 @@ impl Scheduler {
                 self.emit_alert(payload).await;
 
                 if reminder_config.play_adhan {
-                    let _ = self.trigger_audio(config, info, &reminder_config);
+                    let _ = self.trigger_adhan(config, info, &reminder_config);
                 }
 
                 self.fired_prayers.insert(info.prayer);
@@ -256,8 +261,8 @@ impl Scheduler {
                 };
                 self.emit_alert(payload).await;
 
-                if reminder_config.play_sound_after && reminder_config.custom_sound.is_some() {
-                    let _ = self.trigger_audio(config, info, &reminder_config);
+                if reminder_config.play_sound_after {
+                    let _ = self.trigger_beep(config, info, &reminder_config);
                 }
 
                 self.fired_reminders.insert(key);
@@ -272,18 +277,26 @@ impl Scheduler {
     fn show_alert_window(&self) -> bool {
         let mut created = false;
         if self.app.get_webview_window("alert").is_none() {
-            created = WebviewWindowBuilder::new(&self.app, "alert", WebviewUrl::App("/alert".into()))
-                .title("Prayer Alert")
-                .inner_size(380.0, 180.0)
-                .resizable(false)
-                .decorations(false)
-                .transparent(true)
-                .always_on_top(true)
-                .focused(false)
-                .skip_taskbar(true)
-                .visible(false)
-                .build()
-                .is_ok();
+            let builder =
+                WebviewWindowBuilder::new(&self.app, "alert", WebviewUrl::App("/alert".into()))
+                    .title("Prayer Alert")
+                    .inner_size(380.0, 180.0)
+                    .resizable(false)
+                    .decorations(false)
+                    .transparent(true)
+                    .always_on_top(true)
+                    .focused(false)
+                    .skip_taskbar(true)
+                    .visible(false);
+
+            created = if let Some(icon) = self.app.default_window_icon() {
+                builder
+                    .icon(icon.clone())
+                    .and_then(|builder| builder.build())
+                    .is_ok()
+            } else {
+                builder.build().is_ok()
+            };
         }
 
         if let Some(alert_win) = self.app.get_webview_window("alert") {
@@ -294,6 +307,14 @@ impl Scheduler {
     }
 
     async fn emit_alert(&self, payload: PrayerAlertPayload) {
+        if let Ok(mut guard) = self.app.state::<AppState>().active_alert.lock() {
+            *guard = Some(ActiveAlertPayload {
+                prayer: payload.prayer.clone(),
+                alert_type: payload.alert_type.clone(),
+                title: payload.title.clone(),
+                body: payload.body.clone(),
+            });
+        }
         let created = self.show_alert_window();
         if created {
             sleep(Duration::from_millis(250)).await;
@@ -311,7 +332,8 @@ impl Scheduler {
             .map_err(|e| e.to_string())
     }
 
-    fn trigger_audio(
+    /// Plays the adhan sound (for on-time prayer alerts).
+    fn trigger_adhan(
         &self,
         _config: &AppConfig,
         info: &PrayerInfo,
@@ -329,6 +351,34 @@ impl Scheduler {
             } else {
                 include_bytes!("../assets/adhan.mp3").as_slice()
             };
+            let _ = audio_state.0.play_embedded(bytes, reminder.volume);
+        }
+        Ok(())
+    }
+
+    /// Plays a beep/alarm sound (for before/after reminders).
+    fn trigger_beep(
+        &self,
+        _config: &AppConfig,
+        info: &PrayerInfo,
+        reminder: &ReminderConfig,
+    ) -> Result<(), String> {
+        let audio_state = self.app.state::<AudioState>();
+        if let Some(path) = &reminder.custom_reminder_sound {
+            if let Ok(path_buf) = std::path::PathBuf::from(path).canonicalize() {
+                tracing::info!("Playing custom reminder sound for {}", info.prayer);
+                let _ = audio_state.0.play_file(path_buf, reminder.volume);
+            } else {
+                tracing::warn!(
+                    "Custom reminder sound not found for {}, falling back to classic alarm",
+                    info.prayer
+                );
+                let bytes = include_bytes!("../assets/classic_alarm.mp3").as_slice();
+                let _ = audio_state.0.play_embedded(bytes, reminder.volume);
+            }
+        } else {
+            tracing::info!("Playing classic alarm reminder for {}", info.prayer);
+            let bytes = include_bytes!("../assets/classic_alarm.mp3").as_slice();
             let _ = audio_state.0.play_embedded(bytes, reminder.volume);
         }
         Ok(())

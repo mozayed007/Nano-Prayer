@@ -46,11 +46,6 @@ impl AudioPlayer {
                             sink.stop();
                         }
 
-                        // We need to create a new sink or append to existing one?
-                        // rodio::Sink::stop() clears the queue.
-                        // But let's try to reuse the sink if possible, or just create new one if needed?
-                        // Actually, Sink is reusable.
-
                         sink.set_volume(volume);
 
                         match File::open(&path) {

@@ -25,6 +25,7 @@ export interface ReminderConfig {
   minutes_after: number;
   play_sound_after: boolean;
   custom_sound: string | null;
+  custom_reminder_sound: string | null;
   volume: number;
   show_notification: boolean;
 }
