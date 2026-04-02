@@ -4,10 +4,13 @@
   import { onMount } from "svelte";
   import { currentPrayer, clockFormat, theme } from "$lib/stores";
   import { fade } from "svelte/transition";
-  import { invoke } from "@tauri-apps/api/core";
-  import { check } from "@tauri-apps/plugin-updater";
-  import { isRegistered, register } from "@tauri-apps/plugin-global-shortcut";
-  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import {
+    invoke,
+    checkForUpdates,
+    isShortcutRegistered,
+    registerShortcut,
+    getCurrentWindow,
+  } from "$lib/desktop/api";
   import PrayerAlert from "$lib/components/PrayerAlert.svelte";
 
   interface PrayerTimesResponse {
@@ -17,6 +20,7 @@
 
   let { children } = $props();
   let globalError = $state<string | null>(null);
+  let isWindowVisible = $state(true);
 
   async function loadConfig() {
     try {
@@ -30,6 +34,7 @@
   }
 
   async function updatePrayerTimes() {
+    if (!isWindowVisible) return;
     try {
       const times = await invoke<PrayerTimesResponse>("get_prayer_times");
       currentPrayer.set(times.next_prayer);
@@ -56,14 +61,31 @@
     // Refresh every minute
     const interval = setInterval(updatePrayerTimes, 60000);
 
-    // Check if in Tauri Context before setting up native plugins
-    const isTauri =
+    // Check if in desktop context before setting up native plugins
+    const isDesktop =
       typeof window !== "undefined" &&
-      ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+      ("__TAURI_INTERNALS__" in window ||
+        "__TAURI__" in window ||
+        "electronAPI" in window);
 
-    if (isTauri) {
+    let unlistenVisibility: (() => void) | undefined;
+
+    if (isDesktop) {
+      // Set up window visibility detection to pause expensive operations
+      (async () => {
+        const win = getCurrentWindow();
+        const visible = await win.isVisible();
+        isWindowVisible = visible;
+        unlistenVisibility = await win.onVisibilityChanged((event: { visible: boolean }) => {
+          isWindowVisible = event.visible;
+          if (event.visible) {
+            // Window became visible - immediately refresh stale data
+            updatePrayerTimes();
+          }
+        });
+      })();
       // 1. Updater
-      check()
+      checkForUpdates()
         .then((update) => {
           if (update) {
             console.log(`NanoPrayer Update available: ${update.version}`);
@@ -75,10 +97,10 @@
 
       // 2. Global Shortcuts
       const shortcut = "CommandOrControl+Shift+P";
-      isRegistered(shortcut)
+      isShortcutRegistered(shortcut)
         .then((registered) => {
           if (!registered) {
-            register(shortcut, (event) => {
+            registerShortcut(shortcut, (event) => {
               if (event.state === "Released") {
                 const win = getCurrentWindow();
                 win.isVisible().then((visible) => {
@@ -101,6 +123,7 @@
       window.removeEventListener("error", handleError);
       window.removeEventListener("unhandledrejection", handleRejection);
       clearInterval(interval);
+      unlistenVisibility?.();
     };
   });
 

@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
-  import type { UnlistenFn } from "@tauri-apps/api/event";
+  import { invoke, listen, type UnlistenFn } from "$lib/desktop/api";
   import { fade, slide } from "svelte/transition";
 
   interface TimelinePoint {
@@ -311,7 +309,7 @@
 
 <style>
   .stats-mini-card {
-    backdrop-filter: blur(24px);
+    backdrop-filter: blur(var(--glass-blur));
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: 1.25rem;

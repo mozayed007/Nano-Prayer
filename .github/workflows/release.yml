@@ -102,6 +102,17 @@ jobs:
           $notes | Set-Content release_notes.txt
           echo "has_notes=$($notes -ne 'See CHANGELOG.md for details.')" >> $env:GITHUB_OUTPUT
 
+      - name: Create source archives
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          # Create zip archive
+          git archive --format=zip -o "Source-code-${tag}.zip" HEAD
+          # Create tar.gz archive  
+          git archive --format=tar.gz -o "Source-code-${tag}.tar.gz" HEAD
+          Write-Host "Created source archives"
+          Get-ChildItem "Source-code-*" | Select-Object Name, Length
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -112,3 +123,5 @@ jobs:
             ${{ steps.artifacts.outputs.setup }}
             ${{ steps.artifacts.outputs.portable }}
             SHA256SUMS.txt
+            Source-code-*.zip
+            Source-code-*.tar.gz

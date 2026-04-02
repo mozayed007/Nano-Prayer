@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invoke } from "$lib/desktop/api";
   import { fade } from "svelte/transition";
 
   interface QiblaResponse {
@@ -29,7 +29,8 @@
   // Smoothing for compass
   let currentCompassRotation = $state(0);
   let currentQiblaRotation = $state(0);
-  let animationFrame: number;
+  let animationFrame: number | null = null;
+  let isAnimating = $state(false);
 
   function lerp(start: number, end: number, factor: number) {
     // Handle shortest path for rotation
@@ -42,7 +43,21 @@
   function animate() {
     currentCompassRotation = lerp(currentCompassRotation, compassRotation, 0.1);
     currentQiblaRotation = lerp(currentQiblaRotation, qiblaRotation, 0.1);
-    animationFrame = requestAnimationFrame(animate);
+
+    // Only continue animation if page is visible
+    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      animationFrame = requestAnimationFrame(animate);
+    } else {
+      animationFrame = null;
+      isAnimating = false;
+    }
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === "visible" && !isAnimating && qiblaData) {
+      isAnimating = true;
+      animate();
+    }
   }
 
   async function initCompass() {
@@ -87,6 +102,7 @@
       }
 
       loading = false;
+      isAnimating = true;
       animate();
     } catch (e) {
       console.error(e);
@@ -111,15 +127,23 @@
 
   onMount(() => {
     initCompass();
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
   });
 
   onDestroy(() => {
     if (typeof window !== "undefined") {
       window.removeEventListener("deviceorientation", handleOrientation);
     }
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame);
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
+    if (animationFrame !== null) {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    }
+    isAnimating = false;
   });
 </script>
 

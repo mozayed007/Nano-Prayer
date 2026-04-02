@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invoke } from "$lib/desktop/api";
   import { fade, fly } from "svelte/transition";
 
   import { clockFormat } from "$lib/stores";
@@ -15,8 +15,14 @@
     isha: string;
   }
 
+  interface DayWithComputed extends PrayerTimesResponse {
+    dayDate: Date;
+    isToday: boolean;
+    dayNumber: number;
+  }
+
   let currentMonth = $state(new Date());
-  let days = $state<PrayerTimesResponse[]>([]);
+  let days = $state<DayWithComputed[]>([]);
   let loading = $state(false);
   let error = $state<string | null>(null);
   let scrollContainer: HTMLDivElement | undefined = $state(undefined);
@@ -27,7 +33,23 @@
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth() + 1;
-      days = await invoke("get_monthly_prayer_times", { year, month });
+      const response = await invoke<PrayerTimesResponse[]>("get_monthly_prayer_times", { year, month });
+
+      // Pre-compute date values once to avoid creating Date objects during render
+      const today = new Date();
+      days = response.map((day) => {
+        const dayDate = new Date(day.date);
+        return {
+          ...day,
+          dayDate,
+          isToday:
+            dayDate.getDate() === today.getDate() &&
+            dayDate.getMonth() === today.getMonth() &&
+            dayDate.getFullYear() === today.getFullYear(),
+          dayNumber: dayDate.getDate(),
+        };
+      });
+
       // Auto-scroll to today after data loads
       await tick();
       setTimeout(scrollToToday, 100);
@@ -274,16 +296,9 @@
             </thead>
             <tbody class="divide-y divide-[var(--glass-border)]">
               {#each days as day, i}
-                {@const today = new Date()}
-                {@const dayDate = new Date(day.date)}
-                {@const isToday =
-                  dayDate.getDate() === today.getDate() &&
-                  dayDate.getMonth() === today.getMonth() &&
-                  dayDate.getFullYear() === today.getFullYear()}
-
                 <tr
-                  data-today={isToday ? "true" : undefined}
-                  class="transition-all duration-300 {isToday
+                  data-today={day.isToday ? "true" : undefined}
+                  class="transition-all duration-300 {day.isToday
                     ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 today-row'
                     : 'hover:bg-[var(--text-main)]/5'}"
                   in:fly={{
@@ -295,45 +310,45 @@
                 >
                   <td class="p-3 md:p-4 text-center">
                     <div
-                      class="w-10 h-10 mx-auto rounded-xl flex items-center justify-center font-black text-base transition-transform duration-300 {isToday
+                      class="w-10 h-10 mx-auto rounded-xl flex items-center justify-center font-black text-base transition-transform duration-300 {day.isToday
                         ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-glow)] scale-110'
                         : 'text-[var(--text-main)] bg-[var(--text-main)]/5 border border-[var(--glass-border)]'}"
                     >
-                      {dayDate.getDate()}
+                      {day.dayNumber}
                     </div>
                   </td>
                   <td
-                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {isToday
+                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {day.isToday
                       ? 'text-[var(--text-main)] font-bold'
                       : 'text-[var(--text-main)]/80'}"
                     >{formatPrayerTime(day.fajr)}</td
                   >
                   <td
-                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide hidden md:table-cell {isToday
+                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide hidden md:table-cell {day.isToday
                       ? 'text-[var(--text-main)]/80'
                       : 'text-[var(--text-main)]/40'}"
                     >{formatPrayerTime(day.sunrise)}</td
                   >
                   <td
-                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {isToday
+                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {day.isToday
                       ? 'text-[var(--text-main)] font-bold'
                       : 'text-[var(--text-main)]/80'}"
                     >{formatPrayerTime(day.dhuhr)}</td
                   >
                   <td
-                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {isToday
+                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {day.isToday
                       ? 'text-[var(--text-main)] font-bold'
                       : 'text-[var(--text-main)]/80'}"
                     >{formatPrayerTime(day.asr)}</td
                   >
                   <td
-                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {isToday
+                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {day.isToday
                       ? 'text-[var(--text-main)] font-bold'
                       : 'text-[var(--text-main)]/80'}"
                     >{formatPrayerTime(day.maghrib)}</td
                   >
                   <td
-                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {isToday
+                    class="p-3 md:p-4 font-mono text-sm md:text-base tracking-wide {day.isToday
                       ? 'text-[var(--text-main)] font-bold'
                       : 'text-[var(--text-main)]/80'}"
                     >{formatPrayerTime(day.isha)}</td

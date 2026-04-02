@@ -1,7 +1,6 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
-  import { invoke } from "@tauri-apps/api/core";
-  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import { invoke, listen, type UnlistenFn } from "$lib/desktop/api";
   import { onMount } from "svelte";
 
   interface PrayerAlertPayload {
@@ -15,19 +14,46 @@
   let visible = $state(false);
   let dismissing = $state(false);
 
-  onMount(() => {
-    let unlistenAlert: UnlistenFn | undefined;
-    let unlistenDismissed: UnlistenFn | undefined;
+  // Non-reactive state for cleanup functions and timers
+  let unlistenAlert: UnlistenFn | undefined;
+  let unlistenDismissed: UnlistenFn | undefined;
+  let autoDismissTimer: ReturnType<typeof setTimeout> | undefined;
+  let visibilityHandler: (() => void) | undefined;
 
+  function clearAutoDismissTimer() {
+    if (autoDismissTimer) {
+      clearTimeout(autoDismissTimer);
+      autoDismissTimer = undefined;
+    }
+  }
+
+  function handleVisibilityChange() {
+    if (document.hidden && visible && alert?.alert_type !== "on_time") {
+      // Window hidden - clear the auto-dismiss timer to pause it
+      clearAutoDismissTimer();
+    } else if (!document.hidden && visible && alert?.alert_type !== "on_time") {
+      // Window visible again - restart auto-dismiss timer
+      startAutoDismissTimer();
+    }
+  }
+
+  function startAutoDismissTimer() {
+    clearAutoDismissTimer();
+    autoDismissTimer = setTimeout(() => {
+      if (!document.hidden) {
+        visible = false;
+      }
+    }, 60000);
+  }
+
+  onMount(() => {
     void listen<PrayerAlertPayload>("prayer-alert", (event) => {
       alert = event.payload;
       visible = true;
 
       // Auto-dismiss after 60 seconds for non-prayer-time alerts
       if (alert.alert_type !== "on_time") {
-        setTimeout(() => {
-          visible = false;
-        }, 60000);
+        startAutoDismissTimer();
       }
     })
       .then((fn) => {
@@ -40,6 +66,7 @@
     void listen("prayer-alert-dismissed", () => {
       visible = false;
       alert = null;
+      clearAutoDismissTimer();
     })
       .then((fn) => {
         unlistenDismissed = fn;
@@ -48,17 +75,29 @@
         console.error("Failed to listen for dismiss events:", e);
       });
 
+    // Add visibility change listener
+    visibilityHandler = handleVisibilityChange;
+    document.addEventListener("visibilitychange", visibilityHandler);
+
     return () => {
       if (unlistenAlert) unlistenAlert();
       if (unlistenDismissed) unlistenDismissed();
+      clearAutoDismissTimer();
+      if (visibilityHandler) {
+        document.removeEventListener("visibilitychange", visibilityHandler);
+      }
     };
   });
 
   async function dismiss() {
     if (dismissing) return;
     dismissing = true;
+    clearAutoDismissTimer();
+
+    // Batch state updates - Svelte 5 automatically batches these
     visible = false;
     alert = null;
+
     try {
       await invoke("dismiss_alert");
     } catch (e) {
@@ -72,6 +111,8 @@
     if (!alert) return;
     if (dismissing) return;
     dismissing = true;
+    clearAutoDismissTimer();
+
     try {
       await invoke("mark_prayer_completed", { prayer: alert.prayer });
     } catch (e) {

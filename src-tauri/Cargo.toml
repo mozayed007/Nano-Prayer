@@ -1,6 +1,6 @@
 [package]
 name = "nano-pray-reminder"
-version = "0.1.4"
+version = "0.1.5"
 description = "A modern, lightweight Islamic prayer time reminder app"
 authors = ["Muhammad Z. Ahmed"]
 edition = "2021"

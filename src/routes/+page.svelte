@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { invoke } from "$lib/desktop/api";
   import { fade, fly } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import { currentPrayer, clockFormat } from "$lib/stores";
@@ -33,10 +33,10 @@
   let hijriDate = $state<HijriDate | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let currentTime = $state(new Date());
+  let isVisible = $state(true);
+  let timeString = $state("");
+  let currentDate = $state(new Date());
   let isFetching = false;
-
-  // Hourglass flip state
   let lastPrayer = $state<string | null>(null);
   let rotationDegrees = $state(0);
 
@@ -47,41 +47,27 @@
     return h * 60 + m;
   }
 
-  // Hourglass sand computations
+  // Hourglass sand computations - cached and only recalculated when prayer times change
   let hourglassProgress = $derived.by(() => {
-    if (
-      !prayerTimes ||
-      prayerTimes.minutes_to_next === null ||
-      prayerTimes.minutes_to_next === undefined
-    ) {
+    // Only recalculate when prayerTimes reference changes, not on every tick
+    const pt = prayerTimes;
+    if (!pt || pt.minutes_to_next === null || pt.minutes_to_next === undefined) {
       return 0;
     }
 
-    if (!prayerTimes.current_prayer || !prayerTimes.next_prayer) {
-      return Math.max(
-        0,
-        Math.min(1, getProgress(prayerTimes.minutes_to_next) / 100),
-      );
+    if (!pt.current_prayer || !pt.next_prayer) {
+      return Math.max(0, Math.min(1, getProgress(pt.minutes_to_next) / 100));
     }
 
     // Attempt to calculate total time between current (previous) and next prayer
-    const currentKey =
-      prayerTimes.current_prayer.toLowerCase() as keyof PrayerTimes;
-    const nextKey = prayerTimes.next_prayer.toLowerCase() as keyof PrayerTimes;
+    const currentKey = pt.current_prayer.toLowerCase() as keyof PrayerTimes;
+    const nextKey = pt.next_prayer.toLowerCase() as keyof PrayerTimes;
 
-    const currentTimeStr = prayerTimes[currentKey] as string;
-    const nextTimeStr = prayerTimes[nextKey] as string;
+    const currentTimeStr = pt[currentKey] as string;
+    const nextTimeStr = pt[nextKey] as string;
 
-    if (
-      !currentTimeStr ||
-      !nextTimeStr ||
-      currentTimeStr === "--:--" ||
-      nextTimeStr === "--:--"
-    ) {
-      return Math.max(
-        0,
-        Math.min(1, getProgress(prayerTimes.minutes_to_next) / 100),
-      );
+    if (!currentTimeStr || !nextTimeStr || currentTimeStr === "--:--" || nextTimeStr === "--:--") {
+      return Math.max(0, Math.min(1, getProgress(pt.minutes_to_next) / 100));
     }
 
     const currentMins = timeStringToMinutes(currentTimeStr);
@@ -96,7 +82,7 @@
     if (totalMinutes <= 0) return 1;
 
     // Elapsed time is total time minus the remaining time
-    const elapsedMinutes = totalMinutes - prayerTimes.minutes_to_next;
+    const elapsedMinutes = totalMinutes - pt.minutes_to_next;
     const progress = elapsedMinutes / totalMinutes;
 
     return Math.max(0, Math.min(1, progress));
@@ -205,14 +191,6 @@
     }
   }
 
-  function formatTime(date: Date): string {
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: $clockFormat !== "hour24",
-    });
-  }
-
   function formatPrayerTime(timeStr: string): string {
     if (!timeStr || timeStr === "--:--") return timeStr;
     const [h, m] = timeStr.split(":").map(Number);
@@ -238,6 +216,16 @@
     return Math.max(0, Math.min(100, ((180 - minutes) / 180) * 100));
   }
 
+  function updateTime() {
+    const now = new Date();
+    timeString = now.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: $clockFormat !== "hour24",
+    });
+    currentDate = now;
+  }
+
   onMount(() => {
     // Load config first so hijriOffset and clockFormat are set before loadData runs
     invoke("get_config")
@@ -254,17 +242,39 @@
         loadData();
       });
 
-    // Update current time every second
+    // Initial time update
+    updateTime();
+
+    // Update time every second - only update string, not full Date
     const interval = setInterval(() => {
-      currentTime = new Date();
+      if (isVisible) {
+        updateTime();
+      }
     }, 1000);
 
     // Refresh prayer times every minute
-    const refreshInterval = setInterval(loadData, 60000);
+    const refreshInterval = setInterval(() => {
+      if (isVisible) {
+        loadData();
+      }
+    }, 60000);
+
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      isVisible = document.visibilityState === "visible";
+      if (isVisible) {
+        // Immediate update when becoming visible
+        updateTime();
+        loadData();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
       clearInterval(refreshInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   });
 </script>
@@ -322,7 +332,7 @@
         <p
           class="text-[var(--text-muted)] mt-[clamp(0.125rem,0.5vmin,0.25rem)] font-medium tracking-wider uppercase text-[clamp(0.6rem,1.8vmin,0.75rem)]"
         >
-          {currentTime.toLocaleDateString("en-US", {
+          {currentDate.toLocaleDateString("en-US", {
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -370,7 +380,7 @@
               <span
                 class="text-[clamp(0.75rem,3vmin,1.125rem)] font-mono font-medium tracking-widest text-[var(--text-main)]/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
               >
-                {formatTime(currentTime)}
+                {timeString}
               </span>
             </div>
 

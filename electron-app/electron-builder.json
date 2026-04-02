@@ -1,0 +1,43 @@
+{
+  "appId": "com.nanopray.reminder.electron",
+  "productName": "NanoPrayReminder-Electron",
+  "asar": true,
+  "publish": {
+    "provider": "github",
+    "releaseType": "release"
+  },
+  "directories": {
+    "output": "dist-installer"
+  },
+  "files": [
+    "dist/**/*",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "../build",
+      "to": "frontend"
+    },
+    {
+      "from": "assets",
+      "to": "assets"
+    },
+    {
+      "from": "icons",
+      "to": "icons"
+    }
+  ],
+  "win": {
+    "icon": "icons/icon.ico",
+    "target": ["nsis", "portable"]
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "artifactName": "NanoPrayReminder-Electron_${version}_${arch}_Setup.${ext}"
+  },
+  "portable": {
+    "artifactName": "NanoPrayReminder-Electron_${version}_${arch}_Portable.${ext}"
+  }
+}

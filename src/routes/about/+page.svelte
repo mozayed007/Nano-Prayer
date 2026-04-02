@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
-  import { getVersion } from "@tauri-apps/api/app";
-  import { open } from "@tauri-apps/plugin-shell";
+  import { getAppVersion, openExternal } from "$lib/desktop/api";
 
   let appVersion = $state("");
   let checking = $state(false);
@@ -12,7 +11,7 @@
 
   onMount(async () => {
     try {
-      appVersion = await getVersion();
+      appVersion = await getAppVersion();
     } catch (e) {
       console.warn("Could not get app version", e);
     }
@@ -83,7 +82,7 @@
   async function openDownloadPage() {
     if (releaseUrl) {
       updateMessage = "Opening browser...";
-      await open(releaseUrl);
+      await openExternal(releaseUrl);
     }
   }
 </script>

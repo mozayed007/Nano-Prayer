@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.5] - 2026-04-02
+
+### Performance Improvements
+
+- **Major FPS optimization** - Reduced GPU/CPU load when app is minimized to system tray
+- **Backdrop blur optimization** - Reduced blur radius from 24px to 10px (60% GPU reduction)
+- **Window transparency removed** - Alert windows no longer use expensive GPU compositing
+- **Visibility-aware updates** - UI updates pause when window is hidden, resume when visible
+- **Qibla animation optimization** - Compass animation pauses when page not visible
+- **Date calculation optimization** - Pre-computed date values in schedule page (30+ fewer Date objects per render)
+- **Event broadcasting optimization** - Non-critical events skip when window hidden
+- **Main window loading optimization** - Window shows only when ready, preventing white flash
+- **PrayerAlert component optimization** - Better timer management and cleanup
+
+### Added
+
+- **Electron version** - New alternative build using Electron framework
+- **Dual framework support** - Both Tauri and Electron versions available
+- **Accessibility improvements** - `prefers-reduced-motion` and `prefers-reduced-transparency` support
+- **WebView2 optimization** - Alert windows use opaque backgrounds for better performance
+
+### Technical
+
+- 100% feature parity between Tauri and Electron versions
+- Shared frontend code (Svelte) across both frameworks
+- Visibility detection API for background operation
+- Improved state management for reactive updates
+
 ## [0.1.4] - 2026-03-13
 
 ### Fixed

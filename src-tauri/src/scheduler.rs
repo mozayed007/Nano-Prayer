@@ -291,7 +291,6 @@ impl Scheduler {
                     .inner_size(380.0, 180.0)
                     .resizable(false)
                     .decorations(false)
-                    .transparent(true)
                     .always_on_top(true)
                     .focused(false)
                     .skip_taskbar(true)

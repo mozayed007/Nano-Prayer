@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
-  import { open } from "@tauri-apps/plugin-dialog";
-  import { enable, disable } from "@tauri-apps/plugin-autostart";
+  import { invoke, openDialog, setAutostart } from "$lib/desktop/api";
   import { fade } from "svelte/transition";
   import { clockFormat, theme } from "$lib/stores";
   import type { AppConfig, SavedLocation } from "$lib/types";
@@ -67,13 +65,14 @@
   }
 
   async function loadConfig() {
-    // Check if running in Tauri environment
+    // Check if running in desktop environment
     if (
       typeof window !== "undefined" &&
       !("__TAURI_INTERNALS__" in window) &&
-      !("__TAURI__" in window)
+      !("__TAURI__" in window) &&
+      !("electronAPI" in window)
     ) {
-      console.error("Tauri API not available.");
+      console.error("Desktop API not available.");
       loading = false;
       return;
     }
@@ -118,11 +117,11 @@
 
       // Handle autostart
       if (config.advanced.auto_start) {
-        await enable().catch((e) =>
+        await setAutostart(true).catch((e) =>
           console.error("Failed to enable autostart:", e),
         );
       } else {
-        await disable().catch((e) =>
+        await setAutostart(false).catch((e) =>
           console.error("Failed to disable autostart:", e),
         );
       }
@@ -178,15 +177,7 @@
   async function selectAdhanFile(prayer: string) {
     if (!config) return;
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [
-          {
-            name: "Audio Files",
-            extensions: ["mp3", "wav", "ogg"],
-          },
-        ],
-      });
+      const selected = await openDialog();
 
       if (selected && typeof selected === "string") {
         if (config.reminders[prayer]) {
@@ -210,15 +201,7 @@
   async function selectReminderFile(prayer: string) {
     if (!config) return;
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [
-          {
-            name: "Audio Files",
-            extensions: ["mp3", "wav", "ogg"],
-          },
-        ],
-      });
+      const selected = await openDialog();
       if (selected && typeof selected === "string") {
         if (config.reminders[prayer]) {
           config.reminders[prayer].custom_reminder_sound = selected;

@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-  import { invoke } from "@tauri-apps/api/core";
-  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import {
+    listen,
+    invoke,
+    getCurrentWindow,
+    type UnlistenFn,
+  } from "$lib/desktop/api";
   import { fade, fly } from "svelte/transition";
   import { backOut } from "svelte/easing";
 
@@ -36,12 +39,14 @@
   }
 
   onMount(() => {
-    // Determine if we are in Tauri
-    const isTauri =
+    // Determine if we are in desktop runtime
+    const isDesktop =
       typeof window !== "undefined" &&
-      ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+      ("__TAURI_INTERNALS__" in window ||
+        "__TAURI__" in window ||
+        "electronAPI" in window);
 
-    if (isTauri) {
+    if (isDesktop) {
       void startListening();
       void invoke<PrayerAlertPayload | null>("get_active_alert")
         .then((payload) => {

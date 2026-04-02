@@ -1,6 +1,6 @@
 {
   "name": "nano-pray-reminder",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": false,
   "license": "MIT",
   "author": "Mo Zayed",
@@ -16,7 +16,10 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:compact": "tauri build && pwsh -NoProfile -File ./scripts/prune-target.ps1"
+    "tauri:build:compact": "tauri build && pwsh -NoProfile -File ./scripts/prune-target.ps1",
+    "electron:dev": "npm --prefix electron-app run dev",
+    "electron:build": "npm --prefix electron-app run build",
+    "electron:dist": "npm --prefix electron-app run dist"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.8",
