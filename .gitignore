@@ -2,6 +2,7 @@
 # Dependencies / Package Managers
 # -----------------------------------------------------------------------------
 /node_modules/
+/electron-app/node_modules/
 /.npm/
 /.pnpm-store/
 /.yarn/
@@ -90,3 +91,14 @@ body.txt
 telemetry-id
 nul
 screenshots/
+
+# Electron build artifacts (not source code)
+electron-app/dist-installer/
+electron-app/dist/
+
+# Source archive temp files
+Source-code-*.zip
+Source-code-*.tar.gz
+SHA256SUMS.txt
+*_setup.exe
+*_portable.exe
