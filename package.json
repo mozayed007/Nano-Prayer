@@ -13,13 +13,18 @@
     "build": "svelte-kit sync && vite build",
     "preview": "vite preview",
     "prune:target": "pwsh -NoProfile -File ./scripts/prune-target.ps1",
+    "check:rust": "cargo check --workspace",
+    "ax:cli": "cargo run -p nano-pray-cli --",
+    "ax:mcp": "cargo run -p nano-pray-mcp",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:compact": "tauri build && pwsh -NoProfile -File ./scripts/prune-target.ps1",
     "electron:dev": "npm --prefix electron-app run dev",
     "electron:build": "npm --prefix electron-app run build",
-    "electron:dist": "npm --prefix electron-app run dist"
+    "electron:dist": "npm --prefix electron-app run dist",
+    "build:all": "npm run build && npm run check:rust && npm run electron:build",
+    "build:all:compact": "npm run build:all && npm run prune:target"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.8",

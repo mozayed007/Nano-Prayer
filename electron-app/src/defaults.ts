@@ -68,6 +68,7 @@ export const defaultConfig: AppConfig = {
     quiet_hours_enabled: false,
     quiet_hours_start: 22,
     quiet_hours_end: 6,
+    muted: false,
   },
   last_backup_path: null,
 };

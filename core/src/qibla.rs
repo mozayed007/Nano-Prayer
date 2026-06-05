@@ -44,13 +44,14 @@ pub fn calculate_qibla(latitude: f64, longitude: f64) -> f64 {
 
     let delta_lng = makkah_lng_rad - lng_rad;
 
-    let x = delta_lng.sin();
-    let y = lat_rad.cos() * makkah_lat_rad.tan() - lat_rad.sin() * delta_lng.cos();
+    let x = delta_lng.sin() * makkah_lat_rad.cos();
+    let y = lat_rad.cos() * makkah_lat_rad.sin()
+        - lat_rad.sin() * makkah_lat_rad.cos() * delta_lng.cos();
 
-    let qibla_rad = y.atan2(x);
+    let qibla_rad = x.atan2(y);
     let qibla_deg = qibla_rad * 180.0 / PI;
 
-    if qibla_deg < 0.0 { qibla_deg + 360.0 } else { qibla_deg }
+    qibla_deg.rem_euclid(360.0)
 }
 
 /// Calculate distance to Makkah using Haversine formula
@@ -73,11 +74,17 @@ pub fn calculate_distance(latitude: f64, longitude: f64) -> f64 {
 
 /// Convert degrees to cardinal direction
 fn degrees_to_cardinal(degrees: f64) -> String {
-    let normalized = if degrees < 0.0 { degrees + 360.0 } else if degrees >= 360.0 { degrees - 360.0 } else { degrees };
+    let normalized = if degrees < 0.0 {
+        degrees + 360.0
+    } else if degrees >= 360.0 {
+        degrees - 360.0
+    } else {
+        degrees
+    };
 
     let directions = [
-        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-        "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW",
+        "NW", "NNW",
     ];
 
     let index = ((normalized + 11.25) / 22.5).floor() as usize % 16;
@@ -91,7 +98,8 @@ mod tests {
     #[test]
     fn test_qibla_from_new_york() {
         let qibla = QiblaDirection::calculate(40.7128, -74.0060).unwrap();
-        assert!(qibla.degrees_from_north > 50.0 && qibla.degrees_from_north < 70.0);
+        assert!((qibla.degrees_from_north - 58.48).abs() < 0.1);
+        assert_eq!(qibla.cardinal_direction, "ENE");
         assert!(qibla.distance_km > 10000.0);
     }
 }

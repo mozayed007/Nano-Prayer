@@ -1,0 +1,17 @@
+[package]
+name = "nano-pray-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Agent-friendly JSON CLI for NanoPrayReminder"
+
+[[bin]]
+name = "nano-pray"
+path = "src/main.rs"
+
+[dependencies]
+chrono = { workspace = true }
+nano-pray-core = { path = "../core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

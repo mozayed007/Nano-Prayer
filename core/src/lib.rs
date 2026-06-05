@@ -4,6 +4,7 @@
 //! Provides prayer times, Qibla direction, Hijri calendar, location management,
 //! reminders, and prayer statistics.
 
+pub mod agent;
 pub mod config;
 pub mod error;
 pub mod hijri;
@@ -13,18 +14,12 @@ pub mod qibla;
 pub mod reminder;
 pub mod statistics;
 
-#[cfg(feature = "audio")]
-pub mod audio;
-
-#[cfg(feature = "network")]
-pub mod weather;
-
 // Re-exports for convenience
 pub use config::AppConfig;
 pub use error::{Error, Result};
 pub use hijri::HijriDate;
 pub use location::{City, Coordinates, LocationManager};
-pub use prayer::{PrayerInfo, PrayerTimes, PrayerCalculator};
+pub use prayer::{PrayerCalculator, PrayerInfo, PrayerTimes};
 pub use qibla::QiblaDirection;
 pub use reminder::{Reminder, ReminderScheduler};
 pub use statistics::{PrayerLog, Statistics};

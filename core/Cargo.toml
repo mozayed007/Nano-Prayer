@@ -29,18 +29,9 @@ confy = { workspace = true }
 # UUID for unique identifiers
 uuid = { workspace = true }
 
-# Audio
-rodio = { workspace = true, optional = true }
-
-# HTTP
-reqwest = { workspace = true, optional = true }
-
 # Error handling
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 
 [features]
 default = []
-audio = ["rodio"]
-network = ["reqwest"]
-full = ["audio", "network"]

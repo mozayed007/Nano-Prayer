@@ -12,28 +12,14 @@
   ],
   "permissions": [
     "core:default",
-    "core:window:allow-toggle-maximize",
-    "core:window:allow-set-title",
     "core:window:allow-hide",
     "core:window:allow-show",
-    "core:window:allow-unminimize",
     "core:window:allow-set-focus",
-    "core:window:allow-start-dragging",
-    "core:path:default",
     "core:event:default",
-    "core:event:allow-listen",
-    "core:event:allow-unlisten",
-    "core:event:allow-emit",
-    "core:event:allow-emit-to",
     "dialog:default",
-    "fs:default",
     "notification:default",
     "autostart:default",
-    "autostart:allow-enable",
-    "autostart:allow-disable",
-    "autostart:allow-is-enabled",
     "process:default",
-    "shell:default",
     "shell:allow-open"
   ]
 }

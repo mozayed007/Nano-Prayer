@@ -15,6 +15,7 @@
 /dist/
 /.vite/
 vite.svg
+*.tsbuildinfo
 
 # -----------------------------------------------------------------------------
 # Rust / Cargo / Tauri Build Artifacts
@@ -23,8 +24,7 @@ vite.svg
 /src-tauri/target/
 /src-tauri/gen/
 
-# Keep Cargo.lock ignored for now in this workspace workflow.
-Cargo.lock
+# Cargo.lock is tracked for reproducible application, CLI, and MCP builds.
 
 # -----------------------------------------------------------------------------
 # Environment / Secrets
@@ -74,17 +74,21 @@ Desktop.ini
 # -----------------------------------------------------------------------------
 # Misc
 # -----------------------------------------------------------------------------
-docs/
-**/docs/
 *.bak
 *.orig
 *.rej
 
 # Release assets (built locally)
 /release-assets/
+nano-prayer.bundle
 
 # Build scripts (local utilities)
 *.ps1
+!scripts/prune-target.ps1
+
+# Kilo / Agent tooling
+.kilo/
+.agent/
 
 # Misc local files
 body.txt
@@ -92,9 +96,13 @@ telemetry-id
 nul
 screenshots/
 
-# Electron build artifacts (not source code)
+# Electron build artifacts and package locks
 electron-app/dist-installer/
 electron-app/dist/
+electron-app/1
+electron-app/bun.lock
+electron-app/package-lock.json.bak
+electron-app/null
 
 # Source archive temp files
 Source-code-*.zip
@@ -102,3 +110,7 @@ Source-code-*.tar.gz
 SHA256SUMS.txt
 *_setup.exe
 *_portable.exe
+
+# Signing artifacts
+sign-output.txt
+sign-error.txt

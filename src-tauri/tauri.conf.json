@@ -10,7 +10,7 @@
     "frontendDist": "../build"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "label": "main",
@@ -27,17 +27,32 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self' asset:",
+        "connect-src": "ipc: http://ipc.localhost http://api.aladhan.com",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "style-src": "'unsafe-inline' 'self'"
+      },
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
     }
   },
   "plugins": {
     "updater": {
-      "pubkey": "dummy",
-      "endpoints": []
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY5RTVDNzQ1MEM3NUQzNjUKUldSbDAzVU1SY2ZsK1Y5THR4eWcrdThKZ0QwNWwxZE1KTVM1QitkZDJxTi9rS1ljblpVcmRmakMK",
+      "endpoints": [
+        "https://github.com/mozayed007/Nano-Prayer/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": "v1Compatible",
     "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",

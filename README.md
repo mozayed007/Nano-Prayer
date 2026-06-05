@@ -24,6 +24,7 @@
 - 📅 **Hijri date conversion**
 - 🧭 **Qibla direction** with compass view
 - 📊 **Monthly schedule view** and basic prayer analytics/statistics
+- 🤖 **Agent experience (AX)** via JSON CLI, MCP tools/resources/prompts, and reusable agent profiles
 - 🔔 **Per-prayer reminder settings**:
   - Enable/disable toggle
   - Minutes before notification
@@ -32,6 +33,8 @@
   - Custom audio file with preview controls
 - 🎨 **Theme support**: Light/dark/system themes
 - 🖥️ **System tray integration** with autostart and global shortcut support
+- 🔄 **Professional update system**: Dual-channel updates (stable/pre-release) with in-app downloads
+- 📦 **Portable & Installed versions**: Choose your preferred deployment method
 
 ---
 
@@ -45,7 +48,7 @@
 
 | Technology                                    | Purpose                                |
 | --------------------------------------------- | -------------------------------------- |
-| Rust workspace (`core` + `src-tauri`)         | Backend logic & native shell           |
+| Rust workspace (`core` + `src-tauri` + AX binaries) | Backend logic, native shell, CLI, and MCP |
 | Tauri 2                                       | Desktop application framework          |
 | Svelte 5 + SvelteKit + Vite                   | Frontend UI                            |
 | Bun (recommended)                             | Package manager & build tool           |
@@ -57,6 +60,10 @@
 ```text
 NanoPrayer/
 ├── core/                  # Rust domain logic (prayer, config, qibla, stats)
+├── cli/                   # JSON CLI for agents and automation
+├── mcp/                   # MCP server for agent hosts
+├── agents/                # Agent skills and profiles
+├── docs/                  # AX and integration documentation
 ├── src-tauri/             # Tauri backend (commands, scheduler, tray, audio)
 ├── src/                   # SvelteKit frontend routes + components
 ├── static/                # Web/static assets (banner, favicon)
@@ -99,6 +106,9 @@ npm run tauri:dev
 # Frontend production build
 bun run build
 
+# Frontend, Rust workspace, and Electron TypeScript checks
+bun run build:all
+
 # Desktop release build
 bun run tauri:build
 ```
@@ -121,6 +131,9 @@ bun run prune:target
 
 # Or build and prune in one command
 bun run tauri:build:compact
+
+# Or run frontend/Rust/Electron checks and prune target
+bun run build:all:compact
 ```
 
 Manual options:
@@ -128,7 +141,25 @@ Manual options:
 ```powershell
 # Keep debug artifacts, prune release only
 pwsh -NoProfile -File ./scripts/prune-target.ps1 -KeepDebug
+
+# Preview cleanup without deleting files
+pwsh -NoProfile -File ./scripts/prune-target.ps1 -DryRun
 ```
+
+### Agent Experience (AX)
+
+NanoPrayer can be used by agents without driving the desktop UI.
+
+```bash
+# JSON CLI
+cargo run -p nano-pray-cli -- next
+cargo run -p nano-pray-cli -- times --lat 30.0444 --lng 31.2357
+
+# MCP server
+cargo run -p nano-pray-mcp
+```
+
+See [`docs/AX.md`](docs/AX.md) and the profiles in [`agents/`](agents/).
 
 ### Complete Clean Build
 

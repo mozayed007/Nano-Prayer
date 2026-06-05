@@ -138,9 +138,11 @@ impl Scheduler {
         if let Some(tray) = self.app.tray_by_id("tray") {
             if let Some(next) = times.next_prayer {
                 let tooltip = format_next_prayer_tooltip(next.name(), times.minutes_to_next);
-                let _ = tray.set_tooltip(Some(tooltip));
-            } else {
-                let _ = tray.set_tooltip(Some("No more prayers today"));
+                if let Err(e) = tray.set_tooltip(Some(tooltip)) {
+                    tracing::warn!("Failed to update tray tooltip: {}", e);
+                }
+            } else if let Err(e) = tray.set_tooltip(Some("No more prayers today")) {
+                tracing::warn!("Failed to update tray tooltip: {}", e);
             }
         }
 
@@ -174,6 +176,14 @@ impl Scheduler {
         self.last_reminder_signatures.insert(info.prayer, signature);
 
         if !reminder_config.enabled {
+            return Ok(());
+        }
+
+        let muted = {
+            let state = self.app.state::<AppState>();
+            state.muted.lock().map(|m| *m).unwrap_or(false)
+        };
+        if muted {
             return Ok(());
         }
 
@@ -216,32 +226,30 @@ impl Scheduler {
         // 2. "On time" reminder — fires once per prayer per day.
         // diff will be 0 or go slightly negative within the same scheduler tick.
         // We allow a 2-minute window to avoid missing it due to scheduler jitter.
-        if diff <= 0 && diff > -2 {
-            if !self.fired_prayers.contains(&info.prayer) {
-                let title = format!("Time for {}", info.prayer);
-                let body = format!("It is now time for {}", info.prayer);
+        if diff <= 0 && diff > -2 && !self.fired_prayers.contains(&info.prayer) {
+            let title = format!("Time for {}", info.prayer);
+            let body = format!("It is now time for {}", info.prayer);
 
-                if reminder_config.show_notification {
-                    let _ = self.send_notification(&title, &body);
-                }
-
-                let payload = PrayerAlertPayload {
-                    prayer: info.prayer.name().to_string(),
-                    alert_type: "on_time".to_string(),
-                    title: title.clone(),
-                    body: body.clone(),
-                };
-                self.emit_alert(payload).await;
-
-                if reminder_config.play_adhan {
-                    let _ = self.trigger_adhan(config, info, &reminder_config);
-                }
-
-                self.fired_prayers.insert(info.prayer);
-                // Also mark "before" as done so it doesn't fire if scheduler catches up
-                self.fired_reminders.insert((info.prayer, "before"));
-                tracing::info!("Fired 'on_time' reminder for {}", info.prayer);
+            if reminder_config.show_notification {
+                let _ = self.send_notification(&title, &body);
             }
+
+            let payload = PrayerAlertPayload {
+                prayer: info.prayer.name().to_string(),
+                alert_type: "on_time".to_string(),
+                title: title.clone(),
+                body: body.clone(),
+            };
+            self.emit_alert(payload).await;
+
+            if reminder_config.play_adhan {
+                let _ = self.trigger_adhan(config, info, &reminder_config);
+            }
+
+            self.fired_prayers.insert(info.prayer);
+            // Also mark "before" as done so it doesn't fire if scheduler catches up
+            self.fired_reminders.insert((info.prayer, "before"));
+            tracing::info!("Fired 'on_time' reminder for {}", info.prayer);
         }
 
         // 3. "After" reminder — fires once per prayer per day
@@ -282,7 +290,7 @@ impl Scheduler {
     }
 
     /// Shows the alert window, bringing it to the foreground.
-    fn show_alert_window(&self) -> bool {
+    fn show_alert_window(&self) -> Result<bool, String> {
         let mut created = false;
         if self.app.get_webview_window("alert").is_none() {
             let builder =
@@ -304,13 +312,23 @@ impl Scheduler {
             } else {
                 builder.build().is_ok()
             };
+
+            if !created {
+                return Err("Failed to create alert window".to_string());
+            }
+            if self.app.get_webview_window("alert").is_none() {
+                tracing::warn!(
+                    "Alert window was not created despite builder not returning an error"
+                );
+                return Err("Alert window not found after creation attempt".to_string());
+            }
         }
 
         if let Some(alert_win) = self.app.get_webview_window("alert") {
             let _ = alert_win.unminimize();
             let _ = alert_win.show();
         }
-        created
+        Ok(created)
     }
 
     async fn emit_alert(&self, payload: PrayerAlertPayload) {
@@ -323,8 +341,14 @@ impl Scheduler {
             });
         }
         let created = self.show_alert_window();
-        if created {
-            sleep(Duration::from_millis(250)).await;
+        match &created {
+            Ok(true) => {
+                sleep(Duration::from_millis(250)).await;
+            }
+            Err(e) => {
+                tracing::error!("Failed to show alert window: {}", e);
+            }
+            _ => {}
         }
         let _ = self.app.emit("prayer-alert", payload);
     }
@@ -347,11 +371,23 @@ impl Scheduler {
         reminder: &ReminderConfig,
     ) -> Result<(), String> {
         let audio_state = self.app.state::<AudioState>();
+        let mut played_custom = false;
         if let Some(path) = &reminder.custom_sound {
-            if let Ok(path_buf) = std::path::PathBuf::from(path).canonicalize() {
-                let _ = audio_state.0.play_file(path_buf, reminder.volume);
+            match std::path::PathBuf::from(path).canonicalize() {
+                Ok(path_buf) => {
+                    let _ = audio_state.0.play_file(path_buf, reminder.volume);
+                    played_custom = true;
+                }
+                Err(_) => {
+                    tracing::warn!(
+                        "Custom adhan sound '{:?}' not found for {}, falling back to default",
+                        path,
+                        info.prayer
+                    );
+                }
             }
-        } else {
+        }
+        if !played_custom {
             tracing::info!("Playing Default Adhan for {}", info.prayer);
             let bytes = if info.prayer == nano_pray_core::prelude::Prayer::Fajr {
                 include_bytes!("../assets/adhan_fajr.mp3").as_slice()

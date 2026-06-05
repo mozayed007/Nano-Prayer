@@ -2,6 +2,8 @@
 
 use crate::audio::AudioState;
 use chrono::{Datelike, Duration, Local, NaiveDate};
+use nano_pray_core::agent::{self, AgentNextPrayer};
+use nano_pray_core::config::ReminderConfig;
 use nano_pray_core::location::CityDatabase;
 use nano_pray_core::prelude::*;
 use nano_pray_core::statistics::PrayerLog;
@@ -18,6 +20,7 @@ pub struct AppState {
     pub city_db: Mutex<CityDatabase>,
     pub prayer_log: Mutex<PrayerLog>,
     pub active_alert: Mutex<Option<ActiveAlertPayload>>,
+    pub muted: Mutex<bool>,
     pub scheduler_wakeup: Arc<Notify>,
 }
 
@@ -147,7 +150,7 @@ pub async fn get_monthly_prayer_times(
     } else {
         chrono::NaiveDate::from_ymd_opt(year, month + 1, 1)
     }
-    .unwrap_or_else(|| chrono::NaiveDate::from_ymd_opt(year, 12, 31).unwrap());
+    .ok_or_else(|| format!("Invalid year/month: {}-{}", year, month))?;
 
     let days = next_month.signed_duration_since(start_date).num_days();
 
@@ -197,7 +200,6 @@ pub async fn get_monthly_prayer_times(
 
 #[tauri::command]
 pub async fn play_adhan(
-    _app: tauri::AppHandle,
     state: State<'_, AudioState>,
     custom_path: Option<String>,
     volume: Option<f32>,
@@ -304,15 +306,7 @@ pub struct TimelinePoint {
 }
 
 fn parse_prayer_name(prayer: &str) -> Option<Prayer> {
-    match prayer.trim().to_lowercase().as_str() {
-        "fajr" => Some(Prayer::Fajr),
-        "sunrise" => Some(Prayer::Sunrise),
-        "dhuhr" => Some(Prayer::Dhuhr),
-        "asr" => Some(Prayer::Asr),
-        "maghrib" => Some(Prayer::Maghrib),
-        "isha" => Some(Prayer::Isha),
-        _ => None,
-    }
+    Prayer::parse(prayer)
 }
 
 #[tauri::command]
@@ -354,14 +348,21 @@ pub fn get_active_alert(
 }
 
 #[tauri::command]
-pub fn get_statistics(state: State<'_, AppState>) -> std::result::Result<StatisticsResponse, String> {
+pub fn get_statistics(
+    state: State<'_, AppState>,
+) -> std::result::Result<StatisticsResponse, String> {
     let log = state.prayer_log.lock().map_err(|e| e.to_string())?;
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let today = Local::now().date_naive();
     let start_of_week = today - Duration::days(today.weekday().num_days_from_monday() as i64);
     let start_of_month = today.with_day(1).ok_or("Invalid current month")?;
     let start_of_year = today.with_ordinal(1).ok_or("Invalid current year")?;
-    let all_time_start = log.entries().iter().map(|entry| entry.date).min().unwrap_or(today);
+    let all_time_start = log
+        .entries()
+        .iter()
+        .map(|entry| entry.date)
+        .min()
+        .unwrap_or(today);
 
     let day_stats = build_day_statistics(log.entries(), &config, all_time_start, today)?;
 
@@ -401,7 +402,7 @@ const TRACKED_PRAYERS: [Prayer; 6] = [
     Prayer::Isha,
 ];
 
-fn prayer_index(prayer: Prayer) -> usize {
+const fn prayer_index(prayer: Prayer) -> usize {
     match prayer {
         Prayer::Fajr => 0,
         Prayer::Sunrise => 1,
@@ -411,6 +412,29 @@ fn prayer_index(prayer: Prayer) -> usize {
         Prayer::Isha => 5,
     }
 }
+
+const _: () = {
+    assert!(
+        TRACKED_PRAYERS.len() == 6,
+        "TRACKED_PRAYERS must have exactly 6 entries"
+    );
+    let prayers = [
+        Prayer::Fajr,
+        Prayer::Sunrise,
+        Prayer::Dhuhr,
+        Prayer::Asr,
+        Prayer::Maghrib,
+        Prayer::Isha,
+    ];
+    let mut i = 0;
+    while i < prayers.len() {
+        assert!(
+            prayer_index(prayers[i]) == i,
+            "prayer_index must be consistent with TRACKED_PRAYERS order"
+        );
+        i += 1;
+    }
+};
 
 fn build_day_statistics(
     entries: &[nano_pray_core::statistics::PrayerEntry],
@@ -430,7 +454,6 @@ fn build_day_statistics(
         .with_high_latitude_rule(config.high_latitude_rule)
         .with_adjustments(config.prayer_adjustments);
 
-    let now = Local::now();
     let mut stats = BTreeMap::new();
     let mut date = start;
 
@@ -440,6 +463,7 @@ fn build_day_statistics(
             .calculate(date, lat, lng, None)
             .map_err(|e| e.to_string())?;
 
+        let now = Local::now();
         for prayer_info in &prayer_times.prayers {
             let due = if date < end {
                 true
@@ -454,7 +478,10 @@ fn build_day_statistics(
             }
         }
 
-        for entry in entries.iter().filter(|entry| entry.date == date && entry.completed) {
+        for entry in entries
+            .iter()
+            .filter(|entry| entry.date == date && entry.completed)
+        {
             let idx = prayer_index(entry.prayer);
             day.completed_count += 1;
             day.per_prayer_completed[idx] += 1;
@@ -557,12 +584,14 @@ fn build_timeline(days: &[(NaiveDate, DayStats)]) -> Vec<TimelinePoint> {
 
         return buckets
             .into_iter()
-            .map(|(week_start, (completed_count, expected_count))| TimelinePoint {
-                label: format!("Week of {}", week_start.format("%b %-d")),
-                completed_count,
-                expected_count,
-                completion_rate_percentage: percentage(completed_count, expected_count),
-            })
+            .map(
+                |(week_start, (completed_count, expected_count))| TimelinePoint {
+                    label: format!("Week of {}", week_start.format("%b %-d")),
+                    completed_count,
+                    expected_count,
+                    completion_rate_percentage: percentage(completed_count, expected_count),
+                },
+            )
             .collect();
     }
 
@@ -719,10 +748,14 @@ pub fn save_config(
     state: State<'_, AppState>,
     config: AppConfig,
 ) -> std::result::Result<(), String> {
+    let muted = config.advanced.muted;
     let mut current = state.config.lock().map_err(|e| e.to_string())?;
     *current = config;
     current.save().map_err(|e| e.to_string())?;
     drop(current);
+    if let Ok(mut m) = state.muted.lock() {
+        *m = muted;
+    }
     state.scheduler_wakeup.notify_one();
     Ok(())
 }
@@ -769,4 +802,39 @@ pub fn send_notification(
         .body(&body)
         .show()
         .map_err(|e: tauri_plugin_notification::Error| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_next_prayer(state: State<'_, AppState>) -> std::result::Result<AgentNextPrayer, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    agent::next_prayer(&config).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_reminders_muted(
+    state: State<'_, AppState>,
+    muted: bool,
+) -> std::result::Result<(), String> {
+    if let Ok(mut muted_guard) = state.muted.lock() {
+        *muted_guard = muted;
+    }
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.advanced.muted = muted;
+    config.save().map_err(|e| e.to_string())?;
+    state.scheduler_wakeup.notify_one();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_reminder_settings(
+    state: State<'_, AppState>,
+    prayer: String,
+    reminder: ReminderConfig,
+) -> std::result::Result<(), String> {
+    let parsed = parse_prayer_name(&prayer).ok_or_else(|| "Invalid prayer name".to_string())?;
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    config.set_reminder(&parsed.name().to_lowercase(), reminder);
+    config.save().map_err(|e| e.to_string())?;
+    state.scheduler_wakeup.notify_one();
+    Ok(())
 }

@@ -4,7 +4,7 @@
 
 use crate::error::Result;
 use crate::location::SavedLocation;
-use crate::prayer::{AsrMadhab, CalculationMethod, PrayerAdjustments, HighLatitudeRule};
+use crate::prayer::{AsrMadhab, CalculationMethod, HighLatitudeRule, PrayerAdjustments};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -151,6 +151,8 @@ pub struct AdvancedSettings {
     pub quiet_hours_enabled: bool,
     pub quiet_hours_start: u8,
     pub quiet_hours_end: u8,
+    #[serde(default)]
+    pub muted: bool,
 }
 
 impl Default for AdvancedSettings {
@@ -164,6 +166,7 @@ impl Default for AdvancedSettings {
             quiet_hours_enabled: false,
             quiet_hours_start: 22,
             quiet_hours_end: 6,
+            muted: false,
         }
     }
 }
@@ -177,7 +180,7 @@ pub struct AppConfig {
     pub asr_madhab: AsrMadhab,
     #[serde(default)]
     pub high_latitude_rule: HighLatitudeRule,
-    
+
     pub prayer_adjustments: PrayerAdjustments,
     pub hijri_offset: i32,
     pub show_hijri: bool,
@@ -205,7 +208,7 @@ impl Default for AppConfig {
             calculation_method: CalculationMethod::default(),
             asr_madhab: AsrMadhab::default(),
             high_latitude_rule: HighLatitudeRule::default(),
-            
+
             prayer_adjustments: PrayerAdjustments::default(),
             hijri_offset: 0,
             show_hijri: true,

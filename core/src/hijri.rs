@@ -126,19 +126,23 @@ pub fn gregorian_to_hijri(date: NaiveDate) -> HijriDate {
     let days_since_epoch = date.signed_duration_since(epoch).num_days();
 
     if days_since_epoch < 0 {
-        return HijriDate { year: 1, month: 1, day: 1 };
+        return HijriDate {
+            year: 1,
+            month: 1,
+            day: 1,
+        };
     }
 
     // 30-year cycle has 10631 days.
     let cycles = days_since_epoch / 10631;
     let days_in_current_cycle = days_since_epoch % 10631;
-    
+
     let mut year_in_cycle = 1;
     let mut remaining_days = days_in_current_cycle;
-    
+
     // Lengths of years in 30-year cycle (leap years: 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29)
     for y in 1..=30 {
-        let is_leap = [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&y);
+        let is_leap = is_leap_year_in_cycle(y);
         let year_len = if is_leap { 355 } else { 354 };
         if remaining_days < year_len {
             year_in_cycle = y;
@@ -146,21 +150,21 @@ pub fn gregorian_to_hijri(date: NaiveDate) -> HijriDate {
         }
         remaining_days -= year_len;
     }
-    
+
     let mut month = 1;
     let mut day = remaining_days + 1;
-    
+
     for m in 1..=12 {
-        let month_len = if m % 2 != 0 { 30 } else if m == 12 && [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&year_in_cycle) { 30 } else { 29 };
+        let month_len = hijri_month_len(m, year_in_cycle);
         if day <= month_len {
             month = m;
             break;
         }
         day -= month_len;
     }
-    
+
     let hijri_year = (cycles * 30) + year_in_cycle as i64;
-    
+
     HijriDate {
         year: hijri_year as i32,
         month: month as u8,
@@ -172,21 +176,33 @@ pub fn gregorian_to_hijri(date: NaiveDate) -> HijriDate {
 pub fn hijri_to_gregorian(hijri: HijriDate) -> NaiveDate {
     let mut days = (hijri.year as i64 - 1) / 30 * 10631;
     let year_in_cycle = (hijri.year - 1) % 30 + 1;
-    
+
     for y in 1..year_in_cycle {
-        let is_leap = [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&y);
+        let is_leap = is_leap_year_in_cycle(y);
         days += if is_leap { 355 } else { 354 };
     }
-    
+
     for m in 1..hijri.month {
-        let month_len = if m % 2 != 0 { 30 } else if m == 12 && [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&year_in_cycle) { 30 } else { 29 };
-        days += month_len as i64;
+        let month_len = hijri_month_len(i32::from(m), year_in_cycle);
+        days += month_len;
     }
-    
+
     days += hijri.day as i64 - 1;
-    
+
     let epoch = NaiveDate::from_ymd_opt(622, 7, 19).unwrap();
     epoch + chrono::Duration::days(days)
+}
+
+fn is_leap_year_in_cycle(year_in_cycle: i32) -> bool {
+    [2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29].contains(&year_in_cycle)
+}
+
+fn hijri_month_len(month: i32, year_in_cycle: i32) -> i64 {
+    if month % 2 != 0 || (month == 12 && is_leap_year_in_cycle(year_in_cycle)) {
+        30
+    } else {
+        29
+    }
 }
 
 /// Apply offset to Hijri date (for moon sighting adjustments)

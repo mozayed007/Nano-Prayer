@@ -31,8 +31,7 @@ impl Coordinates {
     }
 
     pub fn is_valid(&self) -> bool {
-        (-90.0..=90.0).contains(&self.latitude)
-            && (-180.0..=180.0).contains(&self.longitude)
+        (-90.0..=90.0).contains(&self.latitude) && (-180.0..=180.0).contains(&self.longitude)
     }
 }
 
@@ -109,11 +108,7 @@ impl SavedLocation {
     }
 
     pub fn from_city(city: &City) -> Self {
-        Self::new(
-            city.display_name(),
-            city.coordinates,
-            city.timezone.clone(),
-        )
+        Self::new(city.display_name(), city.coordinates, city.timezone.clone())
     }
 }
 
@@ -182,7 +177,10 @@ impl LocationManager {
 
     pub fn set_current(&mut self, index: usize) -> Result<()> {
         if index >= self.locations.len() {
-            return Err(Error::LocationNotFound(format!("Index {} out of bounds", index)));
+            return Err(Error::LocationNotFound(format!(
+                "Index {} out of bounds",
+                index
+            )));
         }
         self.current_index = Some(index);
         Ok(())
@@ -277,46 +275,326 @@ impl CityDatabase {
 
     fn load_default_cities(&mut self) {
         let default_cities = vec![
-            City::new("Makkah".into(), "Saudi Arabia".into(), "SA".into(), 21.4225, 39.8262, "Asia/Riyadh".into()),
-            City::new("Madinah".into(), "Saudi Arabia".into(), "SA".into(), 24.4672, 39.6024, "Asia/Riyadh".into()),
-            City::new("Riyadh".into(), "Saudi Arabia".into(), "SA".into(), 24.7136, 46.6753, "Asia/Riyadh".into()),
-            City::new("Jeddah".into(), "Saudi Arabia".into(), "SA".into(), 21.4858, 39.1925, "Asia/Riyadh".into()),
-            City::new("Dubai".into(), "United Arab Emirates".into(), "AE".into(), 25.2048, 55.2708, "Asia/Dubai".into()),
-            City::new("Abu Dhabi".into(), "United Arab Emirates".into(), "AE".into(), 24.4539, 54.3773, "Asia/Dubai".into()),
-            City::new("Cairo".into(), "Egypt".into(), "EG".into(), 30.0444, 31.2357, "Africa/Cairo".into()),
-            City::new("Alexandria".into(), "Egypt".into(), "EG".into(), 31.2001, 29.9187, "Africa/Cairo".into()),
-            City::new("Istanbul".into(), "Turkey".into(), "TR".into(), 41.0082, 28.9784, "Europe/Istanbul".into()),
-            City::new("Ankara".into(), "Turkey".into(), "TR".into(), 39.9334, 32.8597, "Europe/Istanbul".into()),
-            City::new("Karachi".into(), "Pakistan".into(), "PK".into(), 24.8607, 67.0011, "Asia/Karachi".into()),
-            City::new("Lahore".into(), "Pakistan".into(), "PK".into(), 31.5204, 74.3587, "Asia/Karachi".into()),
-            City::new("Islamabad".into(), "Pakistan".into(), "PK".into(), 33.6844, 73.0479, "Asia/Karachi".into()),
-            City::new("Jakarta".into(), "Indonesia".into(), "ID".into(), -6.2088, 106.8456, "Asia/Jakarta".into()),
-            City::new("Dhaka".into(), "Bangladesh".into(), "BD".into(), 23.8103, 90.4125, "Asia/Dhaka".into()),
-            City::new("Kuala Lumpur".into(), "Malaysia".into(), "MY".into(), 3.1390, 101.6869, "Asia/Kuala_Lumpur".into()),
-            City::new("London".into(), "United Kingdom".into(), "GB".into(), 51.5074, -0.1278, "Europe/London".into()),
-            City::new("Manchester".into(), "United Kingdom".into(), "GB".into(), 53.4808, -2.2426, "Europe/London".into()),
-            City::new("Birmingham".into(), "United Kingdom".into(), "GB".into(), 52.4862, -1.8904, "Europe/London".into()),
-            City::new("Paris".into(), "France".into(), "FR".into(), 48.8566, 2.3522, "Europe/Paris".into()),
-            City::new("Berlin".into(), "Germany".into(), "DE".into(), 52.5200, 13.4050, "Europe/Berlin".into()),
-            City::new("New York".into(), "United States".into(), "US".into(), 40.7128, -74.0060, "America/New_York".into()),
-            City::new("Los Angeles".into(), "United States".into(), "US".into(), 34.0522, -118.2437, "America/Los_Angeles".into()),
-            City::new("Chicago".into(), "United States".into(), "US".into(), 41.8781, -87.6298, "America/Chicago".into()),
-            City::new("Houston".into(), "United States".into(), "US".into(), 29.7604, -95.3698, "America/Chicago".into()),
-            City::new("Toronto".into(), "Canada".into(), "CA".into(), 43.6532, -79.3832, "America/Toronto".into()),
-            City::new("Vancouver".into(), "Canada".into(), "CA".into(), 49.2827, -123.1207, "America/Vancouver".into()),
-            City::new("Sydney".into(), "Australia".into(), "AU".into(), -33.8688, 151.2093, "Australia/Sydney".into()),
-            City::new("Melbourne".into(), "Australia".into(), "AU".into(), -37.8136, 144.9631, "Australia/Melbourne".into()),
-            City::new("Tokyo".into(), "Japan".into(), "JP".into(), 35.6762, 139.6503, "Asia/Tokyo".into()),
-            City::new("Delhi".into(), "India".into(), "IN".into(), 28.7041, 77.1025, "Asia/Kolkata".into()),
-            City::new("Mumbai".into(), "India".into(), "IN".into(), 19.0760, 72.8777, "Asia/Kolkata".into()),
-            City::new("Morocco".into(), "Casablanca".into(), "MA".into(), 33.5731, -7.5898, "Africa/Casablanca".into()),
-            City::new("Tunis".into(), "Tunisia".into(), "TN".into(), 36.8065, 10.1815, "Africa/Tunis".into()),
-            City::new("Amman".into(), "Jordan".into(), "JO".into(), 31.9454, 35.9284, "Asia/Amman".into()),
-            City::new("Beirut".into(), "Lebanon".into(), "LB".into(), 33.8938, 35.5018, "Asia/Beirut".into()),
-            City::new("Doha".into(), "Qatar".into(), "QA".into(), 25.2854, 51.5310, "Asia/Qatar".into()),
-            City::new("Kuwait City".into(), "Kuwait".into(), "KW".into(), 29.3759, 47.9774, "Asia/Kuwait".into()),
-            City::new("Muscat".into(), "Oman".into(), "OM".into(), 23.5880, 58.3829, "Asia/Muscat".into()),
-            City::new("Singapore".into(), "Singapore".into(), "SG".into(), 1.3521, 103.8198, "Asia/Singapore".into()),
+            City::new(
+                "Makkah".into(),
+                "Saudi Arabia".into(),
+                "SA".into(),
+                21.4225,
+                39.8262,
+                "Asia/Riyadh".into(),
+            ),
+            City::new(
+                "Madinah".into(),
+                "Saudi Arabia".into(),
+                "SA".into(),
+                24.4672,
+                39.6024,
+                "Asia/Riyadh".into(),
+            ),
+            City::new(
+                "Riyadh".into(),
+                "Saudi Arabia".into(),
+                "SA".into(),
+                24.7136,
+                46.6753,
+                "Asia/Riyadh".into(),
+            ),
+            City::new(
+                "Jeddah".into(),
+                "Saudi Arabia".into(),
+                "SA".into(),
+                21.4858,
+                39.1925,
+                "Asia/Riyadh".into(),
+            ),
+            City::new(
+                "Dubai".into(),
+                "United Arab Emirates".into(),
+                "AE".into(),
+                25.2048,
+                55.2708,
+                "Asia/Dubai".into(),
+            ),
+            City::new(
+                "Abu Dhabi".into(),
+                "United Arab Emirates".into(),
+                "AE".into(),
+                24.4539,
+                54.3773,
+                "Asia/Dubai".into(),
+            ),
+            City::new(
+                "Cairo".into(),
+                "Egypt".into(),
+                "EG".into(),
+                30.0444,
+                31.2357,
+                "Africa/Cairo".into(),
+            ),
+            City::new(
+                "Alexandria".into(),
+                "Egypt".into(),
+                "EG".into(),
+                31.2001,
+                29.9187,
+                "Africa/Cairo".into(),
+            ),
+            City::new(
+                "Istanbul".into(),
+                "Turkey".into(),
+                "TR".into(),
+                41.0082,
+                28.9784,
+                "Europe/Istanbul".into(),
+            ),
+            City::new(
+                "Ankara".into(),
+                "Turkey".into(),
+                "TR".into(),
+                39.9334,
+                32.8597,
+                "Europe/Istanbul".into(),
+            ),
+            City::new(
+                "Karachi".into(),
+                "Pakistan".into(),
+                "PK".into(),
+                24.8607,
+                67.0011,
+                "Asia/Karachi".into(),
+            ),
+            City::new(
+                "Lahore".into(),
+                "Pakistan".into(),
+                "PK".into(),
+                31.5204,
+                74.3587,
+                "Asia/Karachi".into(),
+            ),
+            City::new(
+                "Islamabad".into(),
+                "Pakistan".into(),
+                "PK".into(),
+                33.6844,
+                73.0479,
+                "Asia/Karachi".into(),
+            ),
+            City::new(
+                "Jakarta".into(),
+                "Indonesia".into(),
+                "ID".into(),
+                -6.2088,
+                106.8456,
+                "Asia/Jakarta".into(),
+            ),
+            City::new(
+                "Dhaka".into(),
+                "Bangladesh".into(),
+                "BD".into(),
+                23.8103,
+                90.4125,
+                "Asia/Dhaka".into(),
+            ),
+            City::new(
+                "Kuala Lumpur".into(),
+                "Malaysia".into(),
+                "MY".into(),
+                3.1390,
+                101.6869,
+                "Asia/Kuala_Lumpur".into(),
+            ),
+            City::new(
+                "London".into(),
+                "United Kingdom".into(),
+                "GB".into(),
+                51.5074,
+                -0.1278,
+                "Europe/London".into(),
+            ),
+            City::new(
+                "Manchester".into(),
+                "United Kingdom".into(),
+                "GB".into(),
+                53.4808,
+                -2.2426,
+                "Europe/London".into(),
+            ),
+            City::new(
+                "Birmingham".into(),
+                "United Kingdom".into(),
+                "GB".into(),
+                52.4862,
+                -1.8904,
+                "Europe/London".into(),
+            ),
+            City::new(
+                "Paris".into(),
+                "France".into(),
+                "FR".into(),
+                48.8566,
+                2.3522,
+                "Europe/Paris".into(),
+            ),
+            City::new(
+                "Berlin".into(),
+                "Germany".into(),
+                "DE".into(),
+                52.5200,
+                13.4050,
+                "Europe/Berlin".into(),
+            ),
+            City::new(
+                "New York".into(),
+                "United States".into(),
+                "US".into(),
+                40.7128,
+                -74.0060,
+                "America/New_York".into(),
+            ),
+            City::new(
+                "Los Angeles".into(),
+                "United States".into(),
+                "US".into(),
+                34.0522,
+                -118.2437,
+                "America/Los_Angeles".into(),
+            ),
+            City::new(
+                "Chicago".into(),
+                "United States".into(),
+                "US".into(),
+                41.8781,
+                -87.6298,
+                "America/Chicago".into(),
+            ),
+            City::new(
+                "Houston".into(),
+                "United States".into(),
+                "US".into(),
+                29.7604,
+                -95.3698,
+                "America/Chicago".into(),
+            ),
+            City::new(
+                "Toronto".into(),
+                "Canada".into(),
+                "CA".into(),
+                43.6532,
+                -79.3832,
+                "America/Toronto".into(),
+            ),
+            City::new(
+                "Vancouver".into(),
+                "Canada".into(),
+                "CA".into(),
+                49.2827,
+                -123.1207,
+                "America/Vancouver".into(),
+            ),
+            City::new(
+                "Sydney".into(),
+                "Australia".into(),
+                "AU".into(),
+                -33.8688,
+                151.2093,
+                "Australia/Sydney".into(),
+            ),
+            City::new(
+                "Melbourne".into(),
+                "Australia".into(),
+                "AU".into(),
+                -37.8136,
+                144.9631,
+                "Australia/Melbourne".into(),
+            ),
+            City::new(
+                "Tokyo".into(),
+                "Japan".into(),
+                "JP".into(),
+                35.6762,
+                139.6503,
+                "Asia/Tokyo".into(),
+            ),
+            City::new(
+                "Delhi".into(),
+                "India".into(),
+                "IN".into(),
+                28.7041,
+                77.1025,
+                "Asia/Kolkata".into(),
+            ),
+            City::new(
+                "Mumbai".into(),
+                "India".into(),
+                "IN".into(),
+                19.0760,
+                72.8777,
+                "Asia/Kolkata".into(),
+            ),
+            City::new(
+                "Morocco".into(),
+                "Casablanca".into(),
+                "MA".into(),
+                33.5731,
+                -7.5898,
+                "Africa/Casablanca".into(),
+            ),
+            City::new(
+                "Tunis".into(),
+                "Tunisia".into(),
+                "TN".into(),
+                36.8065,
+                10.1815,
+                "Africa/Tunis".into(),
+            ),
+            City::new(
+                "Amman".into(),
+                "Jordan".into(),
+                "JO".into(),
+                31.9454,
+                35.9284,
+                "Asia/Amman".into(),
+            ),
+            City::new(
+                "Beirut".into(),
+                "Lebanon".into(),
+                "LB".into(),
+                33.8938,
+                35.5018,
+                "Asia/Beirut".into(),
+            ),
+            City::new(
+                "Doha".into(),
+                "Qatar".into(),
+                "QA".into(),
+                25.2854,
+                51.5310,
+                "Asia/Qatar".into(),
+            ),
+            City::new(
+                "Kuwait City".into(),
+                "Kuwait".into(),
+                "KW".into(),
+                29.3759,
+                47.9774,
+                "Asia/Kuwait".into(),
+            ),
+            City::new(
+                "Muscat".into(),
+                "Oman".into(),
+                "OM".into(),
+                23.5880,
+                58.3829,
+                "Asia/Muscat".into(),
+            ),
+            City::new(
+                "Singapore".into(),
+                "Singapore".into(),
+                "SG".into(),
+                1.3521,
+                103.8198,
+                "Asia/Singapore".into(),
+            ),
         ];
 
         self.cities = default_cities;
@@ -329,16 +607,10 @@ impl CityDatabase {
 
         for (idx, city) in self.cities.iter().enumerate() {
             let name_key = city.name.to_lowercase();
-            self.by_name
-                .entry(name_key)
-                .or_default()
-                .push(idx);
+            self.by_name.entry(name_key).or_default().push(idx);
 
             let country_key = city.country.to_lowercase();
-            self.by_country
-                .entry(country_key)
-                .or_default()
-                .push(idx);
+            self.by_country.entry(country_key).or_default().push(idx);
         }
     }
 
@@ -400,11 +672,7 @@ impl CityDatabase {
     }
 
     pub fn countries(&self) -> Vec<&str> {
-        let mut countries: Vec<&str> = self
-            .cities
-            .iter()
-            .map(|c| c.country.as_str())
-            .collect();
+        let mut countries: Vec<&str> = self.cities.iter().map(|c| c.country.as_str()).collect();
         countries.sort();
         countries.dedup();
         countries

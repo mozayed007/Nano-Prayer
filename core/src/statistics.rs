@@ -17,7 +17,12 @@ pub struct PrayerEntry {
 
 impl PrayerEntry {
     pub fn new(date: NaiveDate, prayer: Prayer, completed: bool) -> Self {
-        Self { date, prayer, completed, logged_at: Utc::now() }
+        Self {
+            date,
+            prayer,
+            completed,
+            logged_at: Utc::now(),
+        }
     }
 
     pub fn completed(date: NaiveDate, prayer: Prayer) -> Self {
@@ -47,10 +52,13 @@ pub struct PrayerLog {
 }
 
 impl PrayerLog {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn log(&mut self, entry: PrayerEntry) {
-        self.entries.retain(|e| !(e.date == entry.date && e.prayer == entry.prayer));
+        self.entries
+            .retain(|e| !(e.date == entry.date && e.prayer == entry.prayer));
         self.entries.push(entry);
         self.entries.sort_by(|a, b| a.date.cmp(&b.date));
     }
@@ -68,16 +76,26 @@ impl PrayerLog {
     }
 
     pub fn is_completed(&self, date: NaiveDate, prayer: Prayer) -> bool {
-        self.entries.iter().any(|e| e.date == date && e.prayer == prayer && e.completed)
+        self.entries
+            .iter()
+            .any(|e| e.date == date && e.prayer == prayer && e.completed)
     }
 
     pub fn calculate_statistics(&self, start: NaiveDate, end: NaiveDate) -> Statistics {
-        let entries: Vec<_> = self.entries.iter().filter(|e| e.date >= start && e.date <= end).collect();
+        let entries: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|e| e.date >= start && e.date <= end)
+            .collect();
 
         let total = entries.len() as u32;
         let completed = entries.iter().filter(|e| e.completed).count() as u32;
         let missed = total - completed;
-        let rate = if total > 0 { (completed as f32 / total as f32) * 100.0 } else { 0.0 };
+        let rate = if total > 0 {
+            (completed as f32 / total as f32) * 100.0
+        } else {
+            0.0
+        };
 
         Statistics {
             total_tracked: total,
@@ -89,10 +107,16 @@ impl PrayerLog {
         }
     }
 
-    pub fn len(&self) -> usize { self.entries.len() }
-    pub fn is_empty(&self) -> bool { self.entries.is_empty() }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
 
-    pub fn entries(&self) -> &[PrayerEntry] { &self.entries }
+    pub fn entries(&self) -> &[PrayerEntry] {
+        &self.entries
+    }
 
     pub fn load() -> Result<Self> {
         let log: Self = confy::load("nano-pray-reminder", "prayer-log")?;

@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+  check-tauri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+      - name: Install Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Check Tauri
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+
+  check-electron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: Install Electron deps
+        run: cd electron-app && npm install
+      - name: Check Electron TypeScript
+        run: cd electron-app && npx tsc -p tsconfig.json --noEmit

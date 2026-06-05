@@ -1,0 +1,51 @@
+name: Release Electron
+
+on:
+  push:
+    branches: [release-electron]
+
+jobs:
+  publish-electron:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: Install Electron deps
+        run: cd electron-app && npm install
+      - name: Build Electron
+        run: cd electron-app && npm run dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Collect Electron artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem "electron-app/dist-installer/*Setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $portable = Get-ChildItem "electron-app/dist-installer/*Portable.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $setup) { Write-Error "Setup exe not found"; exit 1 }
+          if (-not $portable) { Write-Error "Portable exe not found"; exit 1 }
+          $tag = "electron-v${{ github.ref_name }}"
+          echo "setup=$($setup.FullName)" >> $env:GITHUB_OUTPUT
+          echo "portable=$($portable.FullName)" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Electron ${{ github.ref_name }}"
+          tag_name: ${{ steps.artifacts.outputs.tag }}
+          body: "Electron build. See assets to download."
+          draft: true
+          files: |
+            ${{ steps.artifacts.outputs.setup }}
+            ${{ steps.artifacts.outputs.portable }}

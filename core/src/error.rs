@@ -29,14 +29,6 @@ pub enum Error {
     #[error("Reminder scheduling error: {0}")]
     ReminderScheduling(String),
 
-    #[cfg(feature = "audio")]
-    #[error("Audio playback error: {0}")]
-    Audio(String),
-
-    #[cfg(feature = "network")]
-    #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
-
     #[error("Unknown error: {0}")]
     Unknown(String),
 }

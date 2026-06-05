@@ -73,6 +73,7 @@ export interface AppConfig {
     quiet_hours_enabled: boolean;
     quiet_hours_start: number;
     quiet_hours_end: number;
+    muted: boolean;
   };
   last_backup_path: string | null;
 }

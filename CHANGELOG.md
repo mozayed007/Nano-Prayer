@@ -23,12 +23,27 @@ All notable changes to this project are documented in this file.
 - **Accessibility improvements** - `prefers-reduced-motion` and `prefers-reduced-transparency` support
 - **WebView2 optimization** - Alert windows use opaque backgrounds for better performance
 
+### Updater
+
+- **Professional update system** - Dual-channel update support (stable + pre-release) with intelligent auto-detection
+- **In-app updates** - Check, download, and install updates directly within the app
+- **Channel selection** - Users can choose between Stable, Pre-release, or Auto mode in Settings
+- **Update notifications** - Automatic update checks on startup with system notifications
+- **Download progress** - Real-time progress tracking with size and percentage
+- **GitHub API fallback** - Works even when Tauri updater endpoint is unavailable
+- **Portable vs Installed detection** - Shows appropriate update instructions for each install type
+
+### Fixed
+
+- **Navigation routing bug** - Fixed issue where all tabs showed Praytime content due to incorrect SPA fallback configuration
+
 ### Technical
 
 - 100% feature parity between Tauri and Electron versions
 - Shared frontend code (Svelte) across both frameworks
 - Visibility detection API for background operation
 - Improved state management for reactive updates
+- Fixed SvelteKit static adapter fallback configuration (changed from `index.html` to `200.html`)
 
 ## [0.1.4] - 2026-03-13
 

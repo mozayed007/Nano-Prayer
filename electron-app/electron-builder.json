@@ -29,7 +29,8 @@
   ],
   "win": {
     "icon": "icons/icon.ico",
-    "target": ["nsis", "portable"]
+    "target": ["nsis", "portable"],
+    "signAndEditExecutable": false
   },
   "nsis": {
     "oneClick": false,
@@ -39,5 +40,6 @@
   },
   "portable": {
     "artifactName": "NanoPrayReminder-Electron_${version}_${arch}_Portable.${ext}"
-  }
+  },
+  "afterPack": "./afterPack.js"
 }

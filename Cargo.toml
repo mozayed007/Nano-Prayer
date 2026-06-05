@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "core",
+    "cli",
+    "mcp",
     "src-tauri",
 ]
 
@@ -37,12 +39,6 @@ color-eyre = "0.6"
 
 # Config persistence
 confy = "0.6"
-
-# Audio
-rodio = { version = "0.19", default-features = false, features = ["mp3", "wav"] }
-
-# HTTP (optional, for location/weather)
-reqwest = { version = "0.12", features = ["json"] }
 
 # Error handling
 thiserror = "2.0"

@@ -41,3 +41,9 @@ const api = {
 };
 
 contextBridge.exposeInMainWorld("electronAPI", api);
+
+declare global {
+  interface Window {
+    electronAPI: typeof api;
+  }
+}

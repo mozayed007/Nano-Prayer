@@ -28,24 +28,47 @@ pub fn run() {
             Some(vec!["--hidden"]),
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .manage(AppState {
             config: Mutex::new(nano_pray_core::config::AppConfig::default()),
             city_db: Mutex::new(nano_pray_core::location::CityDatabase::new()),
             prayer_log: Mutex::new(PrayerLog::default()),
             active_alert: Mutex::new(None),
+            muted: Mutex::new(false),
             scheduler_wakeup: std::sync::Arc::new(Notify::new()),
         })
         .manage(AudioState(std::sync::Arc::new(audio::AudioPlayer::new())))
         .setup(|app| {
             tracing_subscriber::fmt::init();
 
+            let app_handle = app.handle();
+            let state = app_handle.state::<AppState>();
+            let loaded_config = match nano_pray_core::config::AppConfig::load() {
+                Ok(loaded_config) => {
+                    if let Ok(mut config_guard) = state.config.lock() {
+                        *config_guard = loaded_config.clone();
+                        tracing::info!("Configuration loaded successfully");
+                    }
+                    if let Ok(mut muted_guard) = state.muted.lock() {
+                        *muted_guard = loaded_config.advanced.muted;
+                    }
+                    Some(loaded_config)
+                }
+                Err(_) => {
+                    tracing::warn!("Failed to load configuration, using defaults");
+                    None
+                }
+            };
+            let initial_muted = loaded_config
+                .as_ref()
+                .map(|config| config.advanced.muted)
+                .unwrap_or(false);
+
             // Initialize Tray
             let mute_i = CheckMenuItemBuilder::with_id("mute", "Mute Reminders")
-                .checked(false)
+                .checked(initial_muted)
                 .build(app)?;
+            let mute_menu_item = mute_i.clone();
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
 
@@ -55,38 +78,44 @@ pub fn run() {
                 let _tray = TrayIconBuilder::with_id("tray")
                     .icon(icon.clone())
                     .menu(&menu)
-                    .on_menu_event(move |app, event| {
-                        match event.id.as_ref() {
-                            "quit" => {
-                                app.exit(0);
-                            }
-                            "show" => {
-                                if let Some(window) = app.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
-                            }
-                            "mute" => {
-                                // Will be handled globally or we can toggle state in AppState
-                                tracing::info!("Mute toggled in tray");
-                            }
-                            _ => {}
+                    .on_menu_event(move |app, event| match event.id.as_ref() {
+                        "quit" => {
+                            app.exit(0);
                         }
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "mute" => {
+                            let state = app.state::<AppState>();
+                            if let Ok(mut muted) = state.muted.lock() {
+                                *muted = !*muted;
+                                let new_muted = *muted;
+                                let _ = mute_menu_item.set_checked(new_muted);
+                                tracing::info!("Reminders muted: {}", new_muted);
+                                if let Ok(mut config) = state.config.lock() {
+                                    config.advanced.muted = new_muted;
+                                    if let Err(e) = config.save() {
+                                        tracing::warn!(
+                                            "Failed to save config after mute toggle: {}",
+                                            e
+                                        );
+                                    }
+                                }
+                            } else {
+                                tracing::warn!("Failed to update muted state after tray toggle");
+                            };
+                        }
+                        _ => {}
                     })
                     .build(app)?;
             } else {
                 tracing::warn!("Default window icon not found; tray icon disabled.");
             }
 
-            // Load configuration
-            let app_handle = app.handle();
-            let state = app_handle.state::<AppState>();
-            if let Ok(loaded_config) = nano_pray_core::config::AppConfig::load() {
-                if let Ok(mut config_guard) = state.config.lock() {
-                    *config_guard = loaded_config.clone();
-                    tracing::info!("Configuration loaded successfully");
-                }
-
+            if let Some(loaded_config) = loaded_config {
                 // Sync the OS autostart entry with the stored config preference.
                 // This is critical for portable builds: each launch re-registers the current
                 // exe path, so moving the exe never leaves a stale/broken registry entry.
@@ -108,8 +137,6 @@ pub fn run() {
                         }
                     }
                 }
-            } else {
-                tracing::warn!("Failed to load configuration, using defaults");
             }
 
             if let Ok(loaded_log) = PrayerLog::load() {
@@ -150,7 +177,9 @@ pub fn run() {
                     .map(|cfg| cfg.advanced.minimize_to_tray)
                     .unwrap_or(false);
 
-                if minimize_to_tray {
+                let has_tray = app_handle.tray_by_id("tray").is_some();
+
+                if minimize_to_tray && has_tray {
                     api.prevent_close();
                     if let Err(err) = window.hide() {
                         tracing::error!("Failed to hide window to tray: {}", err);
@@ -180,6 +209,9 @@ pub fn run() {
             commands::pause_audio,
             commands::resume_audio,
             commands::get_statistics,
+            commands::get_next_prayer,
+            commands::set_reminders_muted,
+            commands::update_reminder_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

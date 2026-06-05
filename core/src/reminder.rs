@@ -25,12 +25,28 @@ pub struct Reminder {
 }
 
 impl Reminder {
-    pub fn new(prayer: Prayer, reminder_type: ReminderType, scheduled_time: DateTime<Local>, minutes_offset: i32) -> Self {
-        Self { prayer, reminder_type, scheduled_time, minutes_offset, triggered: false }
+    pub fn new(
+        prayer: Prayer,
+        reminder_type: ReminderType,
+        scheduled_time: DateTime<Local>,
+        minutes_offset: i32,
+    ) -> Self {
+        Self {
+            prayer,
+            reminder_type,
+            scheduled_time,
+            minutes_offset,
+            triggered: false,
+        }
     }
 
     pub fn before(prayer: Prayer, prayer_time: DateTime<Local>, minutes: i32) -> Self {
-        Self::new(prayer, ReminderType::Before, prayer_time - Duration::minutes(minutes as i64), -minutes)
+        Self::new(
+            prayer,
+            ReminderType::Before,
+            prayer_time - Duration::minutes(minutes as i64),
+            -minutes,
+        )
     }
 
     pub fn on_time(prayer: Prayer, prayer_time: DateTime<Local>) -> Self {
@@ -72,9 +88,15 @@ impl Default for ReminderScheduler {
 }
 
 impl ReminderScheduler {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-    pub fn schedule_for_day(&mut self, prayer_times: &PrayerTimes, config: &std::collections::HashMap<String, ReminderConfig>) {
+    pub fn schedule_for_day(
+        &mut self,
+        prayer_times: &PrayerTimes,
+        config: &std::collections::HashMap<String, ReminderConfig>,
+    ) {
         self.reminders.clear();
 
         let default_config = ReminderConfig::default();
@@ -92,11 +114,16 @@ impl ReminderScheduler {
             }
 
             if prayer_config.minutes_before > 0 {
-                self.reminders.push(Reminder::before(prayer_info.prayer, prayer_info.time, prayer_config.minutes_before));
+                self.reminders.push(Reminder::before(
+                    prayer_info.prayer,
+                    prayer_info.time,
+                    prayer_config.minutes_before,
+                ));
             }
 
             if prayer_config.play_adhan || prayer_config.show_notification {
-                self.reminders.push(Reminder::on_time(prayer_info.prayer, prayer_info.time));
+                self.reminders
+                    .push(Reminder::on_time(prayer_info.prayer, prayer_info.time));
             }
         }
 
@@ -105,7 +132,8 @@ impl ReminderScheduler {
 
     pub fn next_reminder(&self) -> Option<&Reminder> {
         let now = Local::now();
-        self.reminders.iter()
+        self.reminders
+            .iter()
             .filter(|r| !r.triggered && r.scheduled_time > now)
             .min_by_key(|r| r.scheduled_time)
     }
@@ -158,7 +186,7 @@ impl ReminderScheduler {
     }
 
     pub fn is_muted(&self) -> bool {
-        self.muted_until.map_or(false, |until| Local::now() < until)
+        self.muted_until.is_some_and(|until| Local::now() < until)
     }
 
     pub fn clear(&mut self) {

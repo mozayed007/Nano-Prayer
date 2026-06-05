@@ -69,7 +69,6 @@
     if (
       typeof window !== "undefined" &&
       !("__TAURI_INTERNALS__" in window) &&
-      !("__TAURI__" in window) &&
       !("electronAPI" in window)
     ) {
       console.error("Desktop API not available.");
@@ -151,7 +150,7 @@
   function addLocation(city: any) {
     if (!config) return;
     const newLoc: SavedLocation = {
-      id: crypto.randomUUID(),
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
       name: `${city.name}, ${city.country}`,
       coordinates: { latitude: city.latitude, longitude: city.longitude },
       timezone: city.timezone,

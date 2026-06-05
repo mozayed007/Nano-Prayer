@@ -121,14 +121,14 @@
   let hijriOffset = $state(0);
 
   async function loadData() {
-    // Check if running in Tauri environment
-    if (
+    const isDesktop =
       typeof window !== "undefined" &&
-      !("__TAURI_INTERNALS__" in window) &&
-      !("__TAURI__" in window)
-    ) {
+      ("__TAURI_INTERNALS__" in window ||
+        "electronAPI" in window);
+
+    if (!isDesktop) {
       error =
-        "Tauri API not available. Please run with `npm run tauri:dev` and ensure the Tauri window is open.";
+        "Desktop runtime not available. Please run the desktop application or use `npm run tauri:dev` for Tauri.";
       loading = false;
       return;
     }
