@@ -212,6 +212,7 @@ pub fn run() {
             commands::get_config,
             commands::save_config,
             commands::get_hijri_date,
+            commands::align_hijri_for_location,
             commands::send_notification,
             commands::play_adhan,
             commands::play_reminder_sound,

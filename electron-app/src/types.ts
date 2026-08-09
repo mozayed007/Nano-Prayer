@@ -10,6 +10,14 @@ export interface SavedLocation {
   name: string;
   coordinates: Coordinates;
   timezone: string;
+  is_favorite?: boolean;
+  is_default?: boolean;
+  calculation_method?: string | null;
+  notes?: string | null;
+  /** Per-city moon-sighting day shift; overrides global hijri_offset when set. */
+  hijri_offset?: number | null;
+  /** When true, auto-align may refresh offset from authority data. */
+  hijri_auto_align?: boolean;
 }
 
 export interface ReminderConfig {

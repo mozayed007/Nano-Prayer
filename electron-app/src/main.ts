@@ -27,9 +27,11 @@ import {
 } from "adhan";
 import { defaultConfig } from "./defaults";
 import {
+  adaptiveSchedulerSleepSecs,
   compareSemver,
   createAudioDispatchState,
   flushAudioQueue,
+  gregorianToHijri,
   hijriDateFromGregorian,
   isQuietHour,
   isSafeExternalUrl,
@@ -39,6 +41,7 @@ import {
   prayerDisplayName,
   queueOrDispatchAudio,
   resetAudioDispatch,
+  suggestHijriOffset,
   upsertCompletedPrayer,
 } from "./prayer-logic";
 import type {
@@ -88,7 +91,10 @@ let muted = false;
 const audioDispatch = createAudioDispatchState();
 
 const firedReminders = new Set<string>();
-let schedulerTimer: ReturnType<typeof setInterval> | null = null;
+let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
+/** In-memory config cache – avoids disk I/O every scheduler tick. */
+let cachedConfig: AppConfig | null = null;
+let lastHijriAutoAlignDay: string | null = null;
 
 const configFile = () => path.join(app.getPath("userData"), "config.json");
 const prayerLogFile = () => path.join(app.getPath("userData"), "prayer-log.json");
@@ -190,12 +196,36 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function getConfig(): AppConfig {
+  if (cachedConfig) {
+    return cachedConfig;
+  }
   const loaded = readJson<unknown>(configFile(), null);
   const config = mergeAppConfig<AppConfig>(defaultConfig, loaded);
   if (config.advanced.muted === undefined) {
     config.advanced.muted = false;
   }
+  cachedConfig = config;
   return config;
+}
+
+function invalidateConfigCache(): void {
+  cachedConfig = null;
+}
+
+function effectiveHijriOffset(config: AppConfig): number {
+  const loc = config.locations[config.current_location_index];
+  if (loc && typeof loc.hijri_offset === "number" && Number.isFinite(loc.hijri_offset)) {
+    return Math.min(3, Math.max(-3, loc.hijri_offset));
+  }
+  return Math.min(3, Math.max(-3, config.hijri_offset ?? 0));
+}
+
+function effectiveCalculationMethod(config: AppConfig): string {
+  const loc = config.locations[config.current_location_index];
+  if (loc?.calculation_method && String(loc.calculation_method).trim()) {
+    return String(loc.calculation_method);
+  }
+  return config.calculation_method;
 }
 
 function setMuted(value: boolean): void {
@@ -208,6 +238,7 @@ function setMuted(value: boolean): void {
 
 function saveConfig(config: AppConfig): void {
   writeJson(configFile(), config);
+  cachedConfig = config;
   app.setLoginItemSettings({ openAtLogin: !!config.advanced.auto_start });
 }
 
@@ -540,7 +571,7 @@ function buildPrayerTimesResponse(
     ? { lat: latitude, lng: longitude, name: null }
     : getLocation(config);
 
-  const params = resolveMethod(config.calculation_method);
+  const params = resolveMethod(effectiveCalculationMethod(config));
   params.madhab = config.asr_madhab === "Hanafi" ? Madhab.Hanafi : Madhab.Shafi;
 
   const coordinates = new Coordinates(loc.lat, loc.lng);
@@ -790,7 +821,7 @@ function maybeNotify(title: string, body: string): void {
   new Notification({ title, body }).show();
 }
 
-function triggerReminderCheck(): void {
+function triggerReminderCheck(): number {
   const config = getConfig();
   const now = new Date();
   const times = buildPrayerTimesResponse(now, config);
@@ -799,8 +830,14 @@ function triggerReminderCheck(): void {
     updateTrayTooltip(times);
   }
 
+  let nearestEventSecs: number | null =
+    times.minutes_to_next != null ? times.minutes_to_next * 60 : null;
+
+  // Once per local day: auto-align Hijri for locations that opted in.
+  void maybeAutoAlignHijri(config);
+
   if (muted) {
-    return;
+    return adaptiveSchedulerSleepSecs(nearestEventSecs);
   }
 
   // Quiet hours: keep tray countdown, suppress alerts + audio (matches Tauri).
@@ -812,7 +849,7 @@ function triggerReminderCheck(): void {
       config.advanced.quiet_hours_end,
     )
   ) {
-    return;
+    return adaptiveSchedulerSleepSecs(nearestEventSecs);
   }
 
   prayerOrder.forEach((prayer) => {
@@ -827,18 +864,34 @@ function triggerReminderCheck(): void {
       return;
     }
     const prayerTime = new Date(`${times.date}T${reminderTime}:00`);
-    const diff = Math.floor((prayerTime.getTime() - now.getTime()) / 60000);
+    const diffSecs = Math.floor((prayerTime.getTime() - now.getTime()) / 1000);
+    const diff = Math.floor(diffSecs / 60);
+    // Track nearest before/on-time/after edge for adaptive sleep.
+    const edges = [diffSecs];
+    if (reminder.before_enabled && reminder.minutes_before > 0) {
+      edges.push(diffSecs - reminder.minutes_before * 60);
+    }
+    if (reminder.after_enabled && reminder.minutes_after > 0) {
+      edges.push(diffSecs + reminder.minutes_after * 60);
+    }
+    for (const e of edges) {
+      if (e >= 0 && (nearestEventSecs == null || e < nearestEventSecs)) {
+        nearestEventSecs = e;
+      }
+    }
+
     const volume =
       typeof reminder.volume === "number" && Number.isFinite(reminder.volume)
         ? Math.min(1, Math.max(0, reminder.volume))
         : (config.audio.global_volume ?? 0.7);
 
     const beforeKey = `${times.date}:${key}:before`;
+    const beforeWindowSecs = reminder.minutes_before * 60;
     if (
       reminder.before_enabled &&
       reminder.minutes_before > 0 &&
-      diff > 0 &&
-      diff <= reminder.minutes_before &&
+      diffSecs > 0 &&
+      diffSecs <= beforeWindowSecs &&
       !firedReminders.has(beforeKey)
     ) {
       const payload: PrayerAlertPayload = {
@@ -862,7 +915,7 @@ function triggerReminderCheck(): void {
     }
 
     const onTimeKey = `${times.date}:${key}:on_time`;
-    if (diff <= 0 && diff > -2 && !firedReminders.has(onTimeKey)) {
+    if (diffSecs <= 0 && diffSecs > -90 && !firedReminders.has(onTimeKey)) {
       const payload: PrayerAlertPayload = {
         prayer: prayerName(prayer),
         alert_type: "on_time",
@@ -887,11 +940,12 @@ function triggerReminderCheck(): void {
     }
 
     const afterKey = `${times.date}:${key}:after`;
+    const afterWindowSecs = reminder.minutes_after * 60;
     if (
       reminder.after_enabled &&
       reminder.minutes_after > 0 &&
-      diff < 0 &&
-      diff >= -reminder.minutes_after &&
+      diffSecs < 0 &&
+      diffSecs >= -afterWindowSecs &&
       !firedReminders.has(afterKey)
     ) {
       const payload: PrayerAlertPayload = {
@@ -914,6 +968,8 @@ function triggerReminderCheck(): void {
       }
     }
   });
+
+  return adaptiveSchedulerSleepSecs(nearestEventSecs);
 }
 
 function purgeStaleReminders(): void {
@@ -925,23 +981,83 @@ function purgeStaleReminders(): void {
   }
 }
 
+function scheduleNextReminderTick(delaySecs: number): void {
+  if (schedulerTimer) {
+    clearTimeout(schedulerTimer);
+  }
+  const ms = Math.max(3, delaySecs) * 1000;
+  schedulerTimer = setTimeout(() => {
+    purgeStaleReminders();
+    const next = triggerReminderCheck();
+    scheduleNextReminderTick(next);
+  }, ms);
+}
+
 function startScheduler(): void {
   if (schedulerTimer) {
-    clearInterval(schedulerTimer);
+    clearTimeout(schedulerTimer);
+    schedulerTimer = null;
   }
-  triggerReminderCheck();
-  schedulerTimer = setInterval(() => {
-    triggerReminderCheck();
-    purgeStaleReminders();
-  }, 60_000);
+  const delay = triggerReminderCheck();
+  scheduleNextReminderTick(delay);
 }
 
 function stopScheduler(): void {
   if (!schedulerTimer) {
     return;
   }
-  clearInterval(schedulerTimer);
+  clearTimeout(schedulerTimer);
   schedulerTimer = null;
+}
+
+async function fetchObservedHijriFromAladhan(
+  gregorian: Date,
+): Promise<{ year: number; month: number; day: number; formatted: string } | null> {
+  try {
+    const dd = String(gregorian.getDate()).padStart(2, "0");
+    const mm = String(gregorian.getMonth() + 1).padStart(2, "0");
+    const yyyy = gregorian.getFullYear();
+    const response = await net.fetch(
+      `https://api.aladhan.com/v1/gToH/${dd}-${mm}-${yyyy}`,
+      { headers: { Accept: "application/json", "User-Agent": "NanoPrayReminder-Electron" } },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      data?: { hijri?: { year?: string; day?: string; month?: { number?: number; en?: string } } };
+    };
+    const h = data.data?.hijri;
+    if (!h?.year || !h?.day || !h.month?.number) return null;
+    return {
+      year: parseInt(h.year, 10),
+      month: h.month.number,
+      day: parseInt(h.day, 10),
+      formatted: `${parseInt(h.day, 10)} ${h.month.en ?? ""} ${h.year}`.trim(),
+    };
+  } catch (err) {
+    log.warn("Aladhan Hijri fetch failed:", err);
+    return null;
+  }
+}
+
+async function maybeAutoAlignHijri(config: AppConfig): Promise<void> {
+  const today = localDateStr(new Date());
+  if (lastHijriAutoAlignDay === today) return;
+  lastHijriAutoAlignDay = today;
+
+  const idx = config.current_location_index;
+  const loc = config.locations[idx];
+  if (!loc?.hijri_auto_align) return;
+
+  const observed = await fetchObservedHijriFromAladhan(new Date());
+  if (!observed) return;
+  const offset = suggestHijriOffset(new Date(), observed, (d) => gregorianToHijri(d));
+  if (offset == null) return;
+  if (loc.hijri_offset === offset) return;
+
+  loc.hijri_offset = offset;
+  config.hijri_offset = offset;
+  saveConfig(config);
+  log.info(`Auto-aligned Hijri for ${loc.name}: offset ${offset} (observed ${observed.formatted})`);
 }
 
 function createMainWindow(): void {
@@ -1137,7 +1253,7 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
       return config;
     case "save_config": {
       try {
-        const next = args.config as AppConfig;
+        const next = mergeAppConfig(defaultConfig, args.config);
         muted = next.advanced.muted ?? false;
         saveConfig(next);
         firedReminders.clear();
@@ -1194,9 +1310,74 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
       };
     }
     case "get_hijri_date": {
-      const offsetRaw = args.offsetDays ?? args.offset_days ?? 0;
-      const offset = Number(offsetRaw);
+      const offsetRaw = args.offsetDays ?? args.offset_days;
+      const offset =
+        offsetRaw === undefined || offsetRaw === null
+          ? effectiveHijriOffset(config)
+          : Number(offsetRaw);
       return hijriDateFromGregorian(new Date(), Number.isFinite(offset) ? offset : 0);
+    }
+    case "align_hijri_for_location": {
+      const idx =
+        typeof args.location_index === "number"
+          ? args.location_index
+          : typeof args.locationIndex === "number"
+            ? args.locationIndex
+            : config.current_location_index;
+      if (idx < 0 || idx >= config.locations.length) {
+        throw new Error(`Invalid location index: ${idx}`);
+      }
+      let observedYear = Number(args.observed_year ?? args.observedYear);
+      let observedMonth = Number(args.observed_month ?? args.observedMonth);
+      let observedDay = Number(args.observed_day ?? args.observedDay);
+      let source = "observed_authority";
+
+      if (
+        !Number.isFinite(observedYear) ||
+        !Number.isFinite(observedMonth) ||
+        !Number.isFinite(observedDay)
+      ) {
+        const fetched = await fetchObservedHijriFromAladhan(new Date());
+        if (!fetched) {
+          throw new Error("Could not fetch observed Hijri date for auto-align");
+        }
+        observedYear = fetched.year;
+        observedMonth = fetched.month;
+        observedDay = fetched.day;
+        source = "aladhan";
+      }
+
+      const observed = {
+        year: observedYear,
+        month: observedMonth,
+        day: observedDay,
+      };
+      const offset = suggestHijriOffset(new Date(), observed, (d) => gregorianToHijri(d));
+      if (offset == null) {
+        throw new Error(
+          `Could not match observed Hijri ${observedYear}-${observedMonth}-${observedDay} within ±3 days`,
+        );
+      }
+      const loc = config.locations[idx];
+      loc.hijri_offset = offset;
+      if (args.auto_align === true || args.autoAlign === true) {
+        loc.hijri_auto_align = true;
+      } else if (args.auto_align === false || args.autoAlign === false) {
+        loc.hijri_auto_align = false;
+      }
+      if (idx === config.current_location_index) {
+        config.hijri_offset = offset;
+      }
+      saveConfig(config);
+      const calculated = gregorianToHijri(new Date());
+      return {
+        location_index: idx,
+        location_name: loc.name,
+        offset,
+        observed: `${observedDay} / ${observedMonth} / ${observedYear}`,
+        calculated: `${calculated.day} / ${calculated.month} / ${calculated.year}`,
+        source,
+      };
     }
     case "send_notification": {
       maybeNotify(String(args.title ?? "NanoPrayer"), String(args.body ?? ""));

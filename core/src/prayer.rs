@@ -100,6 +100,25 @@ impl CalculationMethod {
             CalculationMethod::Turkey => Method::Turkey,
         }
     }
+
+    /// Parse common string names (settings / per-location override).
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name.trim().to_lowercase().replace(['-', '_', ' '], "").as_str() {
+            "muslimworldleague" | "mwl" => Some(Self::MuslimWorldLeague),
+            "egyptian" => Some(Self::Egyptian),
+            "karachi" => Some(Self::Karachi),
+            "ummalqura" | "makkah" => Some(Self::UmmAlQura),
+            "dubai" => Some(Self::Dubai),
+            "moonsightingcommittee" | "moonsighting" => Some(Self::MoonsightingCommittee),
+            "northamerica" | "isna" => Some(Self::NorthAmerica),
+            "kuwait" => Some(Self::Kuwait),
+            "qatar" => Some(Self::Qatar),
+            "singapore" => Some(Self::Singapore),
+            "tehran" => Some(Self::Tehran),
+            "turkey" | "diyanet" => Some(Self::Turkey),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -151,6 +170,9 @@ pub struct PrayerInfo {
     pub time_utc: DateTime<Utc>,
     pub has_passed: bool,
     pub minutes_until: Option<i32>,
+    /// Second-precision countdown for accurate on-time triggers (scheduler).
+    #[serde(default)]
+    pub seconds_until: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,6 +183,9 @@ pub struct PrayerTimes {
     pub current_prayer: Option<Prayer>,
     pub next_prayer: Option<Prayer>,
     pub minutes_to_next: Option<i32>,
+    /// Seconds until next prayer (more accurate than minutes for near-term triggers).
+    #[serde(default)]
+    pub seconds_to_next: Option<i64>,
 }
 
 impl PrayerTimes {
@@ -214,18 +239,31 @@ impl PrayerCalculator {
             .with_configuration(config)
             .calculate()
             .map_err(|e| Error::PrayerCalculation(e.to_string()))?;
-        let now = Local::now();
+        // Compare in UTC for accuracy (avoids DST edge glitches on Local).
+        let now_utc = Utc::now();
+        let now_local = now_utc.with_timezone(&Local);
         let prayers = vec![
-            self.build_info(Prayer::Fajr, st.time(SalahPrayer::Fajr), now),
-            self.build_info(Prayer::Sunrise, st.time(SalahPrayer::Sunrise), now),
-            self.build_info(Prayer::Dhuhr, st.time(SalahPrayer::Dhuhr), now),
-            self.build_info(Prayer::Asr, st.time(SalahPrayer::Asr), now),
-            self.build_info(Prayer::Maghrib, st.time(SalahPrayer::Maghrib), now),
-            self.build_info(Prayer::Isha, st.time(SalahPrayer::Isha), now),
+            self.build_info(Prayer::Fajr, st.time(SalahPrayer::Fajr), now_utc, now_local),
+            self.build_info(
+                Prayer::Sunrise,
+                st.time(SalahPrayer::Sunrise),
+                now_utc,
+                now_local,
+            ),
+            self.build_info(Prayer::Dhuhr, st.time(SalahPrayer::Dhuhr), now_utc, now_local),
+            self.build_info(Prayer::Asr, st.time(SalahPrayer::Asr), now_utc, now_local),
+            self.build_info(
+                Prayer::Maghrib,
+                st.time(SalahPrayer::Maghrib),
+                now_utc,
+                now_local,
+            ),
+            self.build_info(Prayer::Isha, st.time(SalahPrayer::Isha), now_utc, now_local),
         ];
         let next_idx = prayers.iter().position(|p| !p.has_passed);
         let mut next_prayer = next_idx.map(|i| prayers[i].prayer);
         let mut mins = next_idx.and_then(|i| prayers[i].minutes_until);
+        let mut secs = next_idx.and_then(|i| prayers[i].seconds_until);
 
         if next_prayer.is_none() {
             // It is past Isha, next prayer is Fajr tomorrow
@@ -237,11 +275,15 @@ impl PrayerCalculator {
                 .calculate()
             {
                 let time_utc = st_tomorrow.time(SalahPrayer::Fajr);
-                let time_local = time_utc.with_timezone(&Local);
-                let delta = time_local.signed_duration_since(now).num_minutes() as i32;
-                // Historical lookups (date << today) leave next Fajr in the past; do not
-                // report huge negative countdowns that confuse CLI/agent clients.
-                mins = if delta >= 0 { Some(delta) } else { None };
+                let delta_secs = time_utc.signed_duration_since(now_utc).num_seconds();
+                // Historical lookups leave next Fajr in the past; avoid huge negatives.
+                if delta_secs >= 0 {
+                    secs = Some(delta_secs);
+                    mins = Some((delta_secs / 60) as i32);
+                } else {
+                    secs = None;
+                    mins = None;
+                }
             }
             next_prayer = Some(Prayer::Fajr);
         }
@@ -262,14 +304,23 @@ impl PrayerCalculator {
             current_prayer: current,
             next_prayer,
             minutes_to_next: mins,
+            seconds_to_next: secs,
         })
     }
 
-    fn build_info(&self, prayer: Prayer, utc: DateTime<Utc>, now: DateTime<Local>) -> PrayerInfo {
+    fn build_info(
+        &self,
+        prayer: Prayer,
+        utc: DateTime<Utc>,
+        now_utc: DateTime<Utc>,
+        now_local: DateTime<Local>,
+    ) -> PrayerInfo {
         let offset = self.adjustment_for(prayer);
         let adjusted_utc = utc + chrono::Duration::minutes(offset as i64);
         let time = adjusted_utc.with_timezone(&Local);
-        let passed = time <= now;
+        let delta_secs = adjusted_utc.signed_duration_since(now_utc).num_seconds();
+        let passed = delta_secs <= 0;
+        let _ = now_local; // display still uses Local conversion of adjusted_utc
         PrayerInfo {
             prayer,
             time,
@@ -278,8 +329,9 @@ impl PrayerCalculator {
             minutes_until: if passed {
                 None
             } else {
-                Some((time.signed_duration_since(now)).num_minutes() as i32)
+                Some((delta_secs / 60) as i32)
             },
+            seconds_until: if passed { None } else { Some(delta_secs) },
         }
     }
 

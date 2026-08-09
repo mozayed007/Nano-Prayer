@@ -4,7 +4,7 @@ use chrono::{DateTime, Local, NaiveDate};
 use chrono::Timelike;
 use nano_pray_core::config::{AppConfig, ReminderConfig};
 use nano_pray_core::prayer::{Prayer, PrayerCalculator, PrayerInfo};
-use nano_pray_core::reminder::is_quiet_hour;
+use nano_pray_core::reminder::{adaptive_scheduler_sleep_secs, is_quiet_hour};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tauri::Emitter;
@@ -88,20 +88,28 @@ impl Scheduler {
         let scheduler_wakeup = self.app.state::<AppState>().scheduler_wakeup.clone();
 
         loop {
-            if let Err(e) = self.check().await {
-                tracing::error!("Scheduler error: {}", e);
-            }
+            let sleep_secs = match self.check().await {
+                Ok(secs) => secs,
+                Err(e) => {
+                    tracing::error!("Scheduler error: {}", e);
+                    30
+                }
+            };
 
-            if tokio::time::timeout(Duration::from_secs(60), scheduler_wakeup.notified())
-                .await
-                .is_ok()
+            if tokio::time::timeout(
+                Duration::from_secs(sleep_secs),
+                scheduler_wakeup.notified(),
+            )
+            .await
+            .is_ok()
             {
                 tracing::info!("Scheduler woken after config update");
             }
         }
     }
 
-    async fn check(&mut self) -> Result<(), String> {
+    /// Runs one reminder pass. Returns adaptive sleep seconds until next poll.
+    async fn check(&mut self) -> Result<u64, String> {
         let state = self.app.state::<AppState>();
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
 
@@ -117,7 +125,7 @@ impl Scheduler {
         };
 
         let calc = PrayerCalculator::new()
-            .with_method(config.calculation_method)
+            .with_method(config.effective_calculation_method())
             .with_madhab(config.asr_madhab)
             .with_high_latitude_rule(config.high_latitude_rule)
             .with_adjustments(config.prayer_adjustments);
@@ -148,6 +156,8 @@ impl Scheduler {
             }
         }
 
+        let mut nearest_event_secs = times.seconds_to_next;
+
         // Quiet hours: keep tray/countdown, suppress alerts + audio.
         if config.advanced.quiet_hours_enabled
             && is_quiet_hour(
@@ -157,14 +167,20 @@ impl Scheduler {
             )
         {
             tracing::debug!("Quiet hours active; skipping reminder alerts");
-            return Ok(());
+            return Ok(adaptive_scheduler_sleep_secs(nearest_event_secs));
         }
 
         for prayer_info in &times.prayers {
+            if let Some(event_in) = seconds_to_reminder_edge(prayer_info, &config, now) {
+                nearest_event_secs = Some(match nearest_event_secs {
+                    Some(n) => n.min(event_in),
+                    None => event_in,
+                });
+            }
             self.check_prayer(&config, prayer_info, now).await?;
         }
 
-        Ok(())
+        Ok(adaptive_scheduler_sleep_secs(nearest_event_secs))
     }
 
     async fn check_prayer(
@@ -201,14 +217,16 @@ impl Scheduler {
             return Ok(());
         }
 
-        // Time difference in minutes (positive = prayer is in the future)
-        let diff = info.time.signed_duration_since(now).num_minutes();
+        // Second-precision delta (positive = prayer still in the future).
+        let diff_secs = info.time.signed_duration_since(now).num_seconds();
+        let diff = diff_secs / 60; // minutes for message text
 
         // 1. "Before" reminder — fires once per prayer per day
+        let before_window_secs = (reminder_config.minutes_before as i64).saturating_mul(60);
         if reminder_config.before_enabled
             && reminder_config.minutes_before > 0
-            && diff > 0
-            && diff <= reminder_config.minutes_before as i64
+            && diff_secs > 0
+            && diff_secs <= before_window_secs
         {
             let key = (info.prayer, "before");
             if !self.fired_reminders.contains(&key) {
@@ -242,9 +260,8 @@ impl Scheduler {
         }
 
         // 2. "On time" reminder — fires once per prayer per day.
-        // diff will be 0 or go slightly negative within the same scheduler tick.
-        // We allow a 2-minute window to avoid missing it due to scheduler jitter.
-        if diff <= 0 && diff > -2 && !self.fired_prayers.contains(&info.prayer) {
+        // Use a 90s window so adaptive polling (5s near edge) does not miss the moment.
+        if diff_secs <= 0 && diff_secs > -90 && !self.fired_prayers.contains(&info.prayer) {
             let title = format!("Time for {}", info.prayer);
             let body = format!("It is now time for {}", info.prayer);
 
@@ -271,10 +288,11 @@ impl Scheduler {
         }
 
         // 3. "After" reminder — fires once per prayer per day
+        let after_window_secs = (reminder_config.minutes_after as i64).saturating_mul(60);
         if reminder_config.after_enabled
             && reminder_config.minutes_after > 0
-            && diff < 0
-            && diff >= -(reminder_config.minutes_after as i64)
+            && diff_secs < 0
+            && diff_secs >= -after_window_secs
         {
             let key = (info.prayer, "after");
             if !self.fired_reminders.contains(&key) {
@@ -449,6 +467,33 @@ impl Scheduler {
         }
         Ok(())
     }
+}
+
+/// Seconds until the next before/on-time/after edge for this prayer (for adaptive sleep).
+fn seconds_to_reminder_edge(
+    info: &PrayerInfo,
+    config: &AppConfig,
+    now: DateTime<Local>,
+) -> Option<i64> {
+    let prayer_name = info.prayer.name().to_lowercase();
+    let reminder = config.reminder_for(&prayer_name);
+    if !reminder.enabled {
+        return None;
+    }
+    let diff_secs = info.time.signed_duration_since(now).num_seconds();
+    let mut candidates: Vec<i64> = Vec::new();
+    // On-time edge
+    candidates.push(diff_secs);
+    if reminder.before_enabled && reminder.minutes_before > 0 {
+        candidates.push(diff_secs - (reminder.minutes_before as i64) * 60);
+    }
+    if reminder.after_enabled && reminder.minutes_after > 0 {
+        candidates.push(diff_secs + (reminder.minutes_after as i64) * 60);
+    }
+    candidates
+        .into_iter()
+        .filter(|s| *s >= 0)
+        .min()
 }
 
 fn format_next_prayer_tooltip(next_prayer: &str, minutes_to_next: Option<i32>) -> String {

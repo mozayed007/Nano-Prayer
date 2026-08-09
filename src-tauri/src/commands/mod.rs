@@ -69,7 +69,7 @@ pub async fn get_prayer_times(
     };
 
     let calc = PrayerCalculator::new()
-        .with_method(config.calculation_method)
+        .with_method(config.effective_calculation_method())
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
         .with_adjustments(config.prayer_adjustments);
@@ -134,7 +134,7 @@ pub async fn get_monthly_prayer_times(
     };
 
     let calc = PrayerCalculator::new()
-        .with_method(config.calculation_method)
+        .with_method(config.effective_calculation_method())
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
         .with_adjustments(config.prayer_adjustments);
@@ -449,7 +449,7 @@ fn build_day_statistics(
     };
 
     let calc = PrayerCalculator::new()
-        .with_method(config.calculation_method)
+        .with_method(config.effective_calculation_method())
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
         .with_adjustments(config.prayer_adjustments);
@@ -771,15 +771,16 @@ pub struct HijriResponse {
 }
 
 #[tauri::command]
-pub fn get_hijri_date(offset_days: Option<i32>) -> std::result::Result<HijriResponse, String> {
+pub fn get_hijri_date(
+    state: State<'_, AppState>,
+    offset_days: Option<i32>,
+) -> std::result::Result<HijriResponse, String> {
     use chrono::{Duration, Local};
-    let hijri = if let Some(offset) = offset_days {
-        let today = Local::now().date_naive();
-        let adjusted = today + Duration::days(offset as i64);
-        HijriDate::from_gregorian(adjusted)
-    } else {
-        HijriDate::today()
-    };
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let offset = offset_days.unwrap_or_else(|| config.effective_hijri_offset());
+    let today = Local::now().date_naive();
+    let adjusted = today + Duration::days(offset as i64);
+    let hijri = HijriDate::from_gregorian(adjusted);
     Ok(HijriResponse {
         year: hijri.year,
         month: hijri.month,
@@ -787,6 +788,71 @@ pub fn get_hijri_date(offset_days: Option<i32>) -> std::result::Result<HijriResp
         month_name: hijri.month_name_english().to_string(),
         formatted: hijri.format(),
         formatted_arabic: hijri.format_arabic(),
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct HijriAlignResult {
+    pub location_index: usize,
+    pub location_name: String,
+    pub offset: i32,
+    pub observed: String,
+    pub calculated: String,
+    pub source: String,
+}
+
+/// Align a location's Hijri offset to an observed authority date (moon sighting).
+/// Pass `observed_*` from Aladhan / local council; if omitted, uses no-op error.
+#[tauri::command]
+pub fn align_hijri_for_location(
+    state: State<'_, AppState>,
+    location_index: Option<usize>,
+    observed_year: i32,
+    observed_month: u8,
+    observed_day: u8,
+    auto_align: Option<bool>,
+) -> std::result::Result<HijriAlignResult, String> {
+    use chrono::Local;
+    use nano_pray_core::suggest_offset_for_observed;
+
+    let mut config = state.config.lock().map_err(|e| e.to_string())?;
+    let idx = location_index.unwrap_or(config.current_location_index);
+    if idx >= config.locations.len() {
+        return Err(format!("Invalid location index: {idx}"));
+    }
+
+    let today = Local::now().date_naive();
+    let observed = HijriDate::new(observed_year, observed_month, observed_day);
+    let calculated = HijriDate::from_gregorian(today);
+    let offset = suggest_offset_for_observed(today, observed).ok_or_else(|| {
+        format!(
+            "Could not match observed Hijri {}-{}-{} within ±3 days of tabular {}",
+            observed_year,
+            observed_month,
+            observed_day,
+            calculated.format()
+        )
+    })?;
+
+    let name = config.locations[idx].name.clone();
+    config.locations[idx].hijri_offset = Some(offset);
+    if let Some(auto) = auto_align {
+        config.locations[idx].hijri_auto_align = auto;
+    }
+    // Keep global in sync when aligning the active city for simple UIs.
+    if idx == config.current_location_index {
+        config.hijri_offset = offset;
+    }
+    config.save().map_err(|e| e.to_string())?;
+    state.scheduler_wakeup.notify_one();
+
+    Ok(HijriAlignResult {
+        location_index: idx,
+        location_name: name,
+        offset,
+        observed: observed.format(),
+        calculated: calculated.format(),
+        source: "observed_authority".into(),
     })
 }
 

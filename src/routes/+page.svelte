@@ -233,7 +233,11 @@
         if (cfg?.appearance?.clock_format) {
           $clockFormat = cfg.appearance.clock_format;
         }
-        if (typeof cfg?.hijri_offset === "number") {
+        // Prefer per-location moon-sighting offset when set
+        const loc = cfg?.locations?.[cfg?.current_location_index ?? 0];
+        if (typeof loc?.hijri_offset === "number") {
+          hijriOffset = loc.hijri_offset;
+        } else if (typeof cfg?.hijri_offset === "number") {
           hijriOffset = cfg.hijri_offset;
         }
       })
@@ -245,19 +249,26 @@
     // Initial time update
     updateTime();
 
-    // Update time every second - only update string, not full Date
-    const interval = setInterval(() => {
-      if (isVisible) {
-        updateTime();
-      }
-    }, 1000);
+    // Clock shows HH:MM only – tick once per minute (aligned), not every second.
+    let clockInterval: ReturnType<typeof setInterval> | undefined;
+    const armClock = () => {
+      if (clockInterval) clearInterval(clockInterval);
+      const msToNextMinute = 60_000 - (Date.now() % 60_000) + 50;
+      setTimeout(() => {
+        if (isVisible) updateTime();
+        clockInterval = setInterval(() => {
+          if (isVisible) updateTime();
+        }, 60_000);
+      }, msToNextMinute);
+    };
+    armClock();
 
-    // Refresh prayer times every minute
+    // Refresh prayer times every minute when visible
     const refreshInterval = setInterval(() => {
       if (isVisible) {
         loadData();
       }
-    }, 60000);
+    }, 60_000);
 
     // Handle visibility changes
     const handleVisibilityChange = () => {
@@ -272,7 +283,7 @@
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      clearInterval(interval);
+      if (clockInterval) clearInterval(clockInterval);
       clearInterval(refreshInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

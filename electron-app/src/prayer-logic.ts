@@ -229,6 +229,41 @@ export function isSafeExternalUrl(url: string): boolean {
   }
 }
 
+/** Adaptive scheduler poll interval (seconds) – mirrors core adaptive_scheduler_sleep_secs. */
+export function adaptiveSchedulerSleepSecs(secondsToNextEvent: number | null | undefined): number {
+  if (secondsToNextEvent == null || !Number.isFinite(secondsToNextEvent)) return 120;
+  const s = secondsToNextEvent;
+  if (s <= 120) return 5;
+  if (s <= 900) return 15;
+  if (s <= 3600) return 30;
+  return Math.min(300, Math.max(60, Math.floor(s / 2)));
+}
+
+/**
+ * Day offset in [-3,3] so tabular Hijri(g+offset) matches observed authority date.
+ * Returns null if no match (caller should keep manual offset).
+ */
+export function suggestHijriOffset(
+  gregorian: Date,
+  observed: { year: number; month: number; day: number },
+  fromGregorian: (d: Date) => { year: number; month: number; day: number },
+): number | null {
+  const base = new Date(gregorian.getFullYear(), gregorian.getMonth(), gregorian.getDate());
+  for (let off = -3; off <= 3; off += 1) {
+    const d = new Date(base);
+    d.setDate(d.getDate() + off);
+    const cand = fromGregorian(d);
+    if (
+      cand.year === observed.year &&
+      cand.month === observed.month &&
+      cand.day === observed.day
+    ) {
+      return off;
+    }
+  }
+  return null;
+}
+
 export function compareSemver(a: string, b: string): number {
   const strip = (s: string) => s.trim().replace(/^v/i, "");
   const pa = strip(a).split(/[.\-+]/).map((n) => parseInt(n, 10) || 0);

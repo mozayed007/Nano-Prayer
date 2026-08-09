@@ -230,6 +230,12 @@ pub fn hijri_date(offset_days: Option<i32>) -> AgentHijriDate {
     }
 }
 
+/// Hijri for today using config effective offset (per-city moon alignment).
+pub fn hijri_date_for_config(config: &AppConfig, offset_override: Option<i32>) -> AgentHijriDate {
+    let offset = offset_override.unwrap_or_else(|| config.effective_hijri_offset());
+    hijri_date(Some(offset))
+}
+
 pub fn set_muted(muted: bool) -> Result<AgentMutation> {
     let mut config = AppConfig::load().unwrap_or_default();
     config.advanced.muted = muted;
@@ -284,7 +290,7 @@ pub fn config_summary(config: &AppConfig) -> serde_json::Value {
 
 fn calculator_from_config(config: &AppConfig) -> PrayerCalculator {
     PrayerCalculator::new()
-        .with_method(config.calculation_method)
+        .with_method(config.effective_calculation_method())
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
         .with_adjustments(config.prayer_adjustments)

@@ -158,11 +158,69 @@
       is_default: config.locations.length === 0,
       calculation_method: null,
       notes: null,
+      hijri_offset: null,
+      hijri_auto_align: false,
     };
     config.locations = [...config.locations, newLoc];
     config.current_location_index = config.locations.length - 1;
     searchResults = [];
     searchQuery = "";
+  }
+
+  let alignBusy = $state(false);
+  let alignStatus = $state("");
+
+  async function autoAlignHijriForCurrentCity() {
+    if (!config) return;
+    alignBusy = true;
+    alignStatus = "";
+    try {
+      // Prefer online authority (Aladhan) via desktop command; Electron fetches if fields omitted.
+      const result = await invoke<{
+        offset: number;
+        observed: string;
+        calculated: string;
+        location_name: string;
+        source: string;
+      }>("align_hijri_for_location", {
+        locationIndex: config.current_location_index,
+        autoAlign: true,
+      });
+      // Reload config so location.hijri_offset is reflected
+      config = await invoke<AppConfig>("get_config");
+      alignStatus = `Aligned ${result.location_name}: offset ${result.offset >= 0 ? "+" : ""}${result.offset} (observed ${result.observed}, source ${result.source})`;
+    } catch (e) {
+      // Tauri requires observed fields – fetch Aladhan in UI then pass through
+      try {
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, "0");
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const yyyy = now.getFullYear();
+        const response = await fetch(
+          `https://api.aladhan.com/v1/gToH/${dd}-${mm}-${yyyy}`,
+        );
+        if (!response.ok) throw new Error(`Aladhan HTTP ${response.status}`);
+        const data = await response.json();
+        const h = data.data.hijri;
+        const result = await invoke<{
+          offset: number;
+          observed: string;
+          location_name: string;
+        }>("align_hijri_for_location", {
+          locationIndex: config.current_location_index,
+          observedYear: parseInt(h.year, 10),
+          observedMonth: h.month.number,
+          observedDay: parseInt(h.day, 10),
+          autoAlign: true,
+        });
+        config = await invoke<AppConfig>("get_config");
+        alignStatus = `Aligned ${result.location_name}: offset ${result.offset >= 0 ? "+" : ""}${result.offset} (observed ${result.observed})`;
+      } catch (e2) {
+        alignStatus = `Align failed: ${String(e2)}`;
+      }
+    } finally {
+      alignBusy = false;
+    }
   }
 
   function removeLocation(index: number) {
@@ -1101,13 +1159,14 @@
 
               <div class="space-y-3">
                 <h2 class="text-xl font-bold flex items-center gap-2">
-                  <span class="text-2xl">🌙</span> Hijri Date Adjustment
+                  <span class="text-2xl">🌙</span> Hijri / Moon Sighting Alignment
                 </h2>
                 <p class="text-sm text-[var(--text-muted)] leading-relaxed">
-                  Different countries follow different moon sighting
-                  conventions. Adjust if the displayed Hijri date is off by 1
-                  day from your local authority (e.g. set <strong>-1</strong> for
-                  Egypt's Dar al-Ifta).
+                  Ramadan and Eid often shift by a day based on local moon
+                  observation. Set a global fallback, or align the
+                  <strong>current city</strong> automatically from an online
+                  authority calendar (Aladhan). Per-city offset overrides the
+                  global value.
                 </p>
                 <div
                   class="flex items-center gap-3 bg-[var(--glass-bg)] p-4 rounded-xl border border-[var(--glass-border)]"
@@ -1115,11 +1174,13 @@
                   <button
                     type="button"
                     class="w-10 h-10 rounded-lg bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] font-bold text-xl transition border border-[var(--glass-border)] disabled:opacity-30"
-                    onclick={() =>
-                      config &&
-                      config.hijri_offset > -2 &&
-                      (config.hijri_offset -= 1)}
-                    disabled={config.hijri_offset <= -2}
+                    onclick={() => {
+                      if (!config) return;
+                      if (config.hijri_offset > -3) config.hijri_offset -= 1;
+                      const loc = config.locations[config.current_location_index];
+                      if (loc) loc.hijri_offset = config.hijri_offset;
+                    }}
+                    disabled={config.hijri_offset <= -3}
                     aria-label="Decrease Hijri offset">−</button
                   >
                   <div class="flex-1 text-center">
@@ -1130,23 +1191,56 @@
                     </span>
                     <p class="text-xs text-[var(--text-muted)] mt-0.5">
                       {config.hijri_offset === 0
-                        ? "Astronomical (Saudi)"
+                        ? "Tabular / astronomical baseline"
                         : config.hijri_offset < 0
-                          ? `${Math.abs(config.hijri_offset)} day${Math.abs(config.hijri_offset) > 1 ? "s" : ""} earlier`
-                          : `${config.hijri_offset} day${config.hijri_offset > 1 ? "s" : ""} later`}
+                          ? `${Math.abs(config.hijri_offset)} day${Math.abs(config.hijri_offset) > 1 ? "s" : ""} earlier (local sighting)`
+                          : `${config.hijri_offset} day${config.hijri_offset > 1 ? "s" : ""} later (local sighting)`}
                     </p>
                   </div>
                   <button
                     type="button"
                     class="w-10 h-10 rounded-lg bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] font-bold text-xl transition border border-[var(--glass-border)] disabled:opacity-30"
-                    onclick={() =>
-                      config &&
-                      config.hijri_offset < 2 &&
-                      (config.hijri_offset += 1)}
-                    disabled={config.hijri_offset >= 2}
+                    onclick={() => {
+                      if (!config) return;
+                      if (config.hijri_offset < 3) config.hijri_offset += 1;
+                      const loc = config.locations[config.current_location_index];
+                      if (loc) loc.hijri_offset = config.hijri_offset;
+                    }}
+                    disabled={config.hijri_offset >= 3}
                     aria-label="Increase Hijri offset">+</button
                   >
                 </div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    class="px-4 py-2 rounded-xl bg-emerald-600/80 hover:bg-emerald-500 text-white font-medium disabled:opacity-40"
+                    disabled={alignBusy || !config.locations.length}
+                    onclick={autoAlignHijriForCurrentCity}
+                  >
+                    {alignBusy ? "Aligning…" : "Auto-align current city"}
+                  </button>
+                  {#if config.locations[config.current_location_index]}
+                    <label class="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                      <input
+                        type="checkbox"
+                        checked={!!config.locations[config.current_location_index]
+                          .hijri_auto_align}
+                        onchange={(e) => {
+                          const loc =
+                            config.locations[config.current_location_index];
+                          if (loc)
+                            loc.hijri_auto_align = (
+                              e.currentTarget as HTMLInputElement
+                            ).checked;
+                        }}
+                      />
+                      Keep auto-aligning this city daily
+                    </label>
+                  {/if}
+                </div>
+                {#if alignStatus}
+                  <p class="text-sm text-[var(--text-muted)]">{alignStatus}</p>
+                {/if}
               </div>
             </div>
           {:else if activeTab === "audio"}

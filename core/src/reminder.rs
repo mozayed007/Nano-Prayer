@@ -202,6 +202,18 @@ pub fn is_quiet_hours_range(current: NaiveTime, start: NaiveTime, end: NaiveTime
     }
 }
 
+/// Adaptive poll interval: dense near prayer/reminder edges, sparse when idle.
+/// Cuts idle CPU/disk while keeping on-time accuracy within a few seconds.
+pub fn adaptive_scheduler_sleep_secs(seconds_to_next_event: Option<i64>) -> u64 {
+    match seconds_to_next_event {
+        Some(s) if s <= 120 => 5,
+        Some(s) if s <= 900 => 15,
+        Some(s) if s <= 3600 => 30,
+        Some(s) => ((s / 2).clamp(60, 300)) as u64,
+        None => 120,
+    }
+}
+
 /// Quiet-hours check from whole-hour settings stored in `AppConfig.advanced`.
 pub fn is_quiet_hour(hour: u8, start_hour: u8, end_hour: u8) -> bool {
     let hour = hour.min(23);
@@ -257,5 +269,15 @@ mod tests {
         let past = Local::now() - Duration::minutes(1);
         scheduler.reminders.push(Reminder::on_time(Prayer::Dhuhr, past));
         assert!(scheduler.check_reminders().is_empty());
+    }
+
+    #[test]
+    fn adaptive_sleep_is_dense_near_events_and_sparse_when_far() {
+        assert_eq!(adaptive_scheduler_sleep_secs(Some(30)), 5);
+        assert_eq!(adaptive_scheduler_sleep_secs(Some(300)), 15);
+        assert_eq!(adaptive_scheduler_sleep_secs(Some(1800)), 30);
+        let far = adaptive_scheduler_sleep_secs(Some(7200));
+        assert!((60..=300).contains(&far));
+        assert_eq!(adaptive_scheduler_sleep_secs(None), 120);
     }
 }

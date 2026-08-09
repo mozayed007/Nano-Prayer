@@ -17,11 +17,13 @@ pub mod statistics;
 // Re-exports for convenience
 pub use config::AppConfig;
 pub use error::{Error, Result};
-pub use hijri::HijriDate;
+pub use hijri::{suggest_offset_for_observed, HijriDate};
 pub use location::{City, Coordinates, LocationManager};
 pub use prayer::{PrayerCalculator, PrayerInfo, PrayerTimes};
 pub use qibla::QiblaDirection;
-pub use reminder::{is_quiet_hour, is_quiet_hours_range, Reminder, ReminderScheduler};
+pub use reminder::{
+    adaptive_scheduler_sleep_secs, is_quiet_hour, is_quiet_hours_range, Reminder, ReminderScheduler,
+};
 pub use statistics::{PrayerLog, Statistics};
 
 /// Prelude for common imports

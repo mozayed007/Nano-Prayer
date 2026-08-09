@@ -212,6 +212,20 @@ pub fn apply_offset(hijri: HijriDate, day_offset: i32) -> HijriDate {
     HijriDate::from_gregorian(adjusted)
 }
 
+/// Find day offset in `[-3, 3]` so `from_gregorian(g + offset)` matches `observed`.
+/// Used to auto-align tabular Hijri to a moon-sighting / authority date for a city.
+pub fn suggest_offset_for_observed(gregorian: NaiveDate, observed: HijriDate) -> Option<i32> {
+    for off in -3i32..=3 {
+        let candidate = HijriDate::from_gregorian(gregorian + chrono::Duration::days(off as i64));
+        if candidate == observed {
+            return Some(off);
+        }
+    }
+    None
+}
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,5 +256,19 @@ mod tests {
         let today = HijriDate::today();
         assert!(today.month >= 1 && today.month <= 12);
         assert!(today.day >= 1 && today.day <= 30);
+    }
+
+    #[test]
+    fn suggest_offset_matches_observed_shift() {
+        let g = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        let base = HijriDate::from_gregorian(g);
+        let observed = HijriDate::from_gregorian(g + chrono::Duration::days(1));
+        let off = suggest_offset_for_observed(g, observed).expect("offset");
+        assert_eq!(off, 1);
+        assert_eq!(
+            HijriDate::from_gregorian(g + chrono::Duration::days(off as i64)),
+            observed
+        );
+        assert_eq!(suggest_offset_for_observed(g, base), Some(0));
     }
 }

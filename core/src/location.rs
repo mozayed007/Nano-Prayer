@@ -90,6 +90,13 @@ pub struct SavedLocation {
     pub is_default: bool,
     pub calculation_method: Option<String>,
     pub notes: Option<String>,
+    /// Local moon-sighting / authority day shift for this city (-3..=3).
+    /// When unset, the global `AppConfig.hijri_offset` is used.
+    #[serde(default)]
+    pub hijri_offset: Option<i32>,
+    /// When true, app may refresh hijri_offset from online authority data.
+    #[serde(default)]
+    pub hijri_auto_align: bool,
 }
 
 impl SavedLocation {
@@ -104,6 +111,8 @@ impl SavedLocation {
             is_default: false,
             calculation_method: None,
             notes: None,
+            hijri_offset: None,
+            hijri_auto_align: false,
         }
     }
 

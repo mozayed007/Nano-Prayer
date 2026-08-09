@@ -237,6 +237,26 @@ impl AppConfig {
         self.locations.get(self.current_location_index)
     }
 
+    /// Hijri day shift: per-location moon alignment overrides global setting.
+    pub fn effective_hijri_offset(&self) -> i32 {
+        self.current_location()
+            .and_then(|loc| loc.hijri_offset)
+            .unwrap_or(self.hijri_offset)
+            .clamp(-3, 3)
+    }
+
+    /// Calculation method: per-location override when set and parseable.
+    pub fn effective_calculation_method(&self) -> crate::prayer::CalculationMethod {
+        if let Some(loc) = self.current_location() {
+            if let Some(ref name) = loc.calculation_method {
+                if let Some(parsed) = crate::prayer::CalculationMethod::from_name(name) {
+                    return parsed;
+                }
+            }
+        }
+        self.calculation_method
+    }
+
     pub fn set_current_location(&mut self, index: usize) {
         if index < self.locations.len() {
             self.current_location_index = index;

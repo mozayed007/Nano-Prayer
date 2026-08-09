@@ -13,6 +13,10 @@ export interface SavedLocation {
   is_default: boolean;
   calculation_method: string | null;
   notes: string | null;
+  /** Per-city moon-sighting day shift (-3..3); overrides global hijri_offset when set. */
+  hijri_offset?: number | null;
+  /** Allow automatic refresh of hijri_offset from online authority calendars. */
+  hijri_auto_align?: boolean;
 }
 
 export interface ReminderConfig {

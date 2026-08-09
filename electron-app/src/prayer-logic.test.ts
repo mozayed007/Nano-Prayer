@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  adaptiveSchedulerSleepSecs,
   compareSemver,
   createAudioDispatchState,
   flushAudioQueue,
@@ -18,6 +19,7 @@ import {
   prayerDisplayName,
   queueOrDispatchAudio,
   resetAudioDispatch,
+  suggestHijriOffset,
   toArabicNumerals,
   upsertCompletedPrayer,
 } from "./prayer-logic";
@@ -121,6 +123,28 @@ describe("mergeAppConfig", () => {
     assert.equal(merged.advanced.auto_start, false);
     assert.equal(merged.advanced.quiet_hours_enabled, false);
     assert.equal(merged.audio.global_volume, 0.2);
+  });
+});
+
+describe("adaptiveSchedulerSleepSecs", () => {
+  it("polls densely near events and sparsely when far", () => {
+    assert.equal(adaptiveSchedulerSleepSecs(30), 5);
+    assert.equal(adaptiveSchedulerSleepSecs(300), 15);
+    assert.equal(adaptiveSchedulerSleepSecs(1800), 30);
+    const far = adaptiveSchedulerSleepSecs(7200);
+    assert.ok(far >= 60 && far <= 300);
+    assert.equal(adaptiveSchedulerSleepSecs(null), 120);
+  });
+});
+
+describe("suggestHijriOffset", () => {
+  it("finds offset so tabular conversion matches observed", () => {
+    const g = new Date(2024, 0, 1);
+    const base = gregorianToHijri(g);
+    assert.equal(suggestHijriOffset(g, base, gregorianToHijri), 0);
+    const nextDay = new Date(2024, 0, 2);
+    const observed = gregorianToHijri(nextDay);
+    assert.equal(suggestHijriOffset(g, observed, gregorianToHijri), 1);
   });
 });
 
