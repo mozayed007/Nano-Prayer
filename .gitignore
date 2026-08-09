@@ -82,9 +82,9 @@ Desktop.ini
 /release-assets/
 nano-prayer.bundle
 
-# Build scripts (local utilities)
+# Build scripts (local utilities) – ignore ad-hoc *.ps1, keep repo scripts/
 *.ps1
-!scripts/prune-target.ps1
+!scripts/*.ps1
 
 # Kilo / Agent tooling
 .kilo/
