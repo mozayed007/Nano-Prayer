@@ -26,6 +26,19 @@ import {
   Qibla,
 } from "adhan";
 import { defaultConfig } from "./defaults";
+import {
+  compareSemver,
+  createAudioDispatchState,
+  flushAudioQueue,
+  hijriDateFromGregorian,
+  isSafeExternalUrl,
+  localDateStr,
+  parsePrayerKey,
+  prayerDisplayName,
+  queueOrDispatchAudio,
+  resetAudioDispatch,
+  upsertCompletedPrayer,
+} from "./prayer-logic";
 import type {
   AppConfig,
   PrayerAlertPayload,
@@ -60,19 +73,6 @@ type UpdateCheckResult = {
   publishedAt: string;
 };
 
-function compareSemver(a: string, b: string): number {
-  const strip = (s: string) => s.trim().replace(/^v/i, "");
-  const pa = strip(a).split(/[.\-+]/).map((n) => parseInt(n, 10) || 0);
-  const pb = strip(b).split(/[.\-+]/).map((n) => parseInt(n, 10) || 0);
-  const len = Math.max(pa.length, pb.length);
-  for (let i = 0; i < len; i += 1) {
-    const na = pa[i] ?? 0;
-    const nb = pb[i] ?? 0;
-    if (na !== nb) return na - nb;
-  }
-  return 0;
-}
-
 let mainWindow: BrowserWindow | null = null;
 let alertWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -82,6 +82,8 @@ let playingAudio = false;
 let isMainWindowVisible = true;
 let isQuitting = false;
 let muted = false;
+/** Queues audio IPC until the hidden player page has loaded and registered listeners. */
+const audioDispatch = createAudioDispatchState();
 
 const firedReminders = new Set<string>();
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
@@ -92,9 +94,15 @@ const prayerLogFile = () => path.join(app.getPath("userData"), "prayer-log.json"
 const isDev = !app.isPackaged;
 
 const getAssetPath = (filename: string): string => {
-  return isDev
-    ? path.join(__dirname, "..", "..", "src-tauri", "assets", filename)
-    : path.join(process.resourcesPath, "assets", filename);
+  if (!isDev) {
+    return path.join(process.resourcesPath, "assets", filename);
+  }
+  // Prefer electron-app/assets (cities.json, packaged media); fall back to Tauri assets.
+  const electronAssets = path.join(__dirname, "..", "assets", filename);
+  if (fs.existsSync(electronAssets)) {
+    return electronAssets;
+  }
+  return path.join(__dirname, "..", "..", "src-tauri", "assets", filename);
 };
 
 const rendererDevUrl = process.env.ELECTRON_RENDERER_URL ?? "http://localhost:1420";
@@ -227,7 +235,7 @@ function computeStatistics(config: AppConfig) {
   const prayerNames = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
   function dateStr(d: Date): string {
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
   }
 
   function startOfWeek(d: Date): Date {
@@ -476,27 +484,6 @@ function getLocation(config: AppConfig): { lat: number; lng: number; name: strin
   return { lat: 21.4225, lng: 39.8262, name: "Makkah", timezone: "Asia/Riyadh" };
 }
 
-function parsePrayerKey(value: string): string | null {
-  switch (value.trim().toLowerCase().replace(/[-_]/g, "")) {
-    case "fajr":
-      return "fajr";
-    case "sunrise":
-      return "sunrise";
-    case "dhuhr":
-    case "zuhr":
-      return "dhuhr";
-    case "asr":
-      return "asr";
-    case "maghrib":
-      return "maghrib";
-    case "isha":
-    case "ishaa":
-      return "isha";
-    default:
-      return null;
-  }
-}
-
 function resolveMethod(name: string) {
   switch (name) {
     case "Egyptian":
@@ -612,7 +599,7 @@ function buildPrayerTimesResponse(
   const qiblaDirection = Qibla(coordinates);
 
   return {
-    date: date.toISOString().slice(0, 10),
+    date: localDateStr(date),
     location_name: loc.name,
     fajr: formatHM(todayPrayers[0].time),
     sunrise: formatHM(todayPrayers[1].time),
@@ -637,8 +624,10 @@ function emitEvent(event: string, payload: unknown, isCritical = false): void {
   if (!isMainWindowVisible && !isCritical) {
     return;
   }
-  BrowserWindow.getAllWindows().forEach((window: any) => {
-    window.webContents.send("desktop:event", { event, payload });
+  BrowserWindow.getAllWindows().forEach((window: BrowserWindow) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send("desktop:event", { event, payload });
+    }
   });
 }
 
@@ -725,7 +714,7 @@ function showAlert(payload: PrayerAlertPayload): void {
     });
   }
 
-emitEvent("prayer-alert", payload);
+emitEvent("prayer-alert", payload, true);
 }
 
 function createTray(): void {
@@ -836,6 +825,10 @@ function triggerReminderCheck(): void {
     }
     const prayerTime = new Date(`${times.date}T${reminderTime}:00`);
     const diff = Math.floor((prayerTime.getTime() - now.getTime()) / 60000);
+    const volume =
+      typeof reminder.volume === "number" && Number.isFinite(reminder.volume)
+        ? Math.min(1, Math.max(0, reminder.volume))
+        : (config.audio.global_volume ?? 0.7);
 
     const beforeKey = `${times.date}:${key}:before`;
     if (
@@ -853,6 +846,13 @@ function triggerReminderCheck(): void {
       };
       firedReminders.add(beforeKey);
       showAlert(payload);
+      if (reminder.play_sound_before) {
+        const soundPath =
+          reminder.custom_reminder_sound && fs.existsSync(reminder.custom_reminder_sound)
+            ? reminder.custom_reminder_sound
+            : getAssetPath("classic_alarm.mp3");
+        playAudioFile(soundPath, volume);
+      }
     }
 
     const onTimeKey = `${times.date}:${key}:on_time`;
@@ -867,6 +867,16 @@ function triggerReminderCheck(): void {
       showAlert(payload);
       if (reminder.show_notification) {
         maybeNotify(payload.title, payload.body);
+      }
+      if (reminder.play_adhan) {
+        let adhanPath =
+          reminder.custom_sound && fs.existsSync(reminder.custom_sound)
+            ? reminder.custom_sound
+            : null;
+        if (!adhanPath) {
+          adhanPath = getAssetPath(key === "fajr" ? "adhan_fajr.mp3" : "adhan.mp3");
+        }
+        playAudioFile(adhanPath, volume);
       }
     }
 
@@ -886,12 +896,19 @@ function triggerReminderCheck(): void {
       };
       firedReminders.add(afterKey);
       showAlert(payload);
+      if (reminder.play_sound_after) {
+        const soundPath =
+          reminder.custom_reminder_sound && fs.existsSync(reminder.custom_reminder_sound)
+            ? reminder.custom_reminder_sound
+            : getAssetPath("classic_alarm.mp3");
+        playAudioFile(soundPath, volume);
+      }
     }
   });
 }
 
 function purgeStaleReminders(): void {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr(new Date());
   for (const key of firedReminders) {
     if (!key.startsWith(today)) {
       firedReminders.delete(key);
@@ -970,10 +987,18 @@ function createMainWindow(): void {
   });
 }
 
+function deliverAudioEvent(event: string, payload?: unknown): void {
+  if (audioWindow && !audioWindow.isDestroyed()) {
+    // Audio window listens via preload electronAPI.listen, which only receives desktop:event.
+    audioWindow.webContents.send("desktop:event", { event, payload });
+  }
+}
+
 function ensureAudioWindow(): BrowserWindow | null {
   if (audioWindow && !audioWindow.isDestroyed()) {
     return audioWindow;
   }
+  resetAudioDispatch(audioDispatch);
   try {
     audioWindow = new BrowserWindow({
       width: 1,
@@ -986,46 +1011,65 @@ function ensureAudioWindow(): BrowserWindow | null {
         nodeIntegration: false,
       },
     });
-    audioWindow.loadURL(`data:text/html,
+    // Mirror showAlert readiness: do not send until the page has loaded and
+    // electronAPI.listen handlers are registered (cold-start adhan was silent).
+    audioWindow.webContents.once("did-finish-load", () => {
+      const pending = flushAudioQueue(audioDispatch);
+      for (const item of pending) {
+        deliverAudioEvent(item.event, item.payload);
+      }
+    });
+    audioWindow.on("closed", () => {
+      audioWindow = null;
+      resetAudioDispatch(audioDispatch);
+    });
+    audioWindow
+      .loadURL(
+        `data:text/html,
       <!DOCTYPE html>
       <html>
       <head><meta charset="utf-8"></head>
       <body>
-      <audio id="player" loop></audio>
+      <audio id="player"></audio>
       <script>
       const player = document.getElementById("player");
-      let onPlayDone = null;
       window.electronAPI.listen("audio:play", (payload) => {
         player.src = payload.path;
         player.volume = payload.volume ?? 0.7;
         player.play().catch(() => {});
-        if (payload.onDone) {
-          onPlayDone = payload.onDone;
-        }
       });
       player.onended = () => {
-        if (onPlayDone) {
-          window.electronAPI.invoke("audio:done");
-          onPlayDone = null;
-        }
+        window.electronAPI.invoke("audio:done");
       };
       window.electronAPI.listen("audio:stop", () => {
         player.pause();
         player.currentTime = 0;
         player.src = "";
-        onPlayDone = null;
       });
       window.electronAPI.listen("audio:pause", () => player.pause());
       window.electronAPI.listen("audio:resume", () => player.play().catch(() => {}));
       </script>
       </body>
       </html>
-    `.replace(/\n\s*/g, "")).catch((err: Error) => log.error("Failed to load audio window:", err));
+    `.replace(/\n\s*/g, ""),
+      )
+      .catch((err: Error) => log.error("Failed to load audio window:", err));
   } catch (err) {
     log.error("Failed to create audio window:", err);
     audioWindow = null;
+    resetAudioDispatch(audioDispatch);
   }
   return audioWindow;
+}
+
+function sendAudioEvent(event: string, payload?: unknown): void {
+  if (!audioWindow || audioWindow.isDestroyed()) {
+    return;
+  }
+  const immediate = queueOrDispatchAudio(audioDispatch, event, payload);
+  if (immediate) {
+    deliverAudioEvent(immediate.event, immediate.payload);
+  }
 }
 
 function playAudioFile(filePath: string, volume: number): void {
@@ -1034,13 +1078,18 @@ function playAudioFile(filePath: string, volume: number): void {
     return;
   }
   try {
+    if (!fs.existsSync(filePath)) {
+      log.error(`Audio file not found: ${filePath}`);
+      return;
+    }
     const data = fs.readFileSync(filePath);
-    const ext = path.extname(filePath).toLowerCase().replace('.', '');
-    const mimeMap: Record<string, string> = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg' };
-    const mime = mimeMap[ext] || 'audio/mpeg';
-    const base64 = `data:${mime};base64,${data.toString('base64')}`;
+    const ext = path.extname(filePath).toLowerCase().replace(".", "");
+    const mimeMap: Record<string, string> = { mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg" };
+    const mime = mimeMap[ext] || "audio/mpeg";
+    const base64 = `data:${mime};base64,${data.toString("base64")}`;
     playingAudio = true;
-    win.webContents.send("audio:play", { path: base64, volume });
+    const clamped = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.7;
+    sendAudioEvent("audio:play", { path: base64, volume: clamped });
   } catch (err) {
     log.error(`Failed to play audio file ${filePath}:`, err);
   }
@@ -1048,12 +1097,15 @@ function playAudioFile(filePath: string, volume: number): void {
 
 function stopAudio(): void {
   playingAudio = false;
-  if (audioWindow && !audioWindow.isDestroyed()) {
-    audioWindow.webContents.send("audio:stop");
+  if (!audioWindow || audioWindow.isDestroyed()) {
+    resetAudioDispatch(audioDispatch);
+    return;
   }
+  sendAudioEvent("audio:stop");
 }
 
 function setupAudioDoneHandler(): void {
+  // Kept for backward compatibility if anything invokes the raw channel.
   ipcMain.handle("audio:done", () => {
     playingAudio = false;
   });
@@ -1124,22 +1176,9 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
       };
     }
     case "get_hijri_date": {
-      const offset = Number(args.offsetDays ?? 0);
-      const d = new Date();
-      d.setDate(d.getDate() + offset);
-      const formatted = new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }).format(d);
-      return {
-        year: d.getFullYear(),
-        month: d.getMonth() + 1,
-        day: d.getDate(),
-        month_name: formatted.split(" ")[1] ?? "",
-        formatted,
-        formatted_arabic: formatted,
-      };
+      const offsetRaw = args.offsetDays ?? args.offset_days ?? 0;
+      const offset = Number(offsetRaw);
+      return hijriDateFromGregorian(new Date(), Number.isFinite(offset) ? offset : 0);
     }
     case "send_notification": {
       maybeNotify(String(args.title ?? "NanoPrayer"), String(args.body ?? ""));
@@ -1147,47 +1186,71 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
     }
     case "play_adhan": {
       const isFajr = !!(args.is_fajr ?? args.isFajr);
-      const adhanPath = getAssetPath(isFajr ? "adhan_fajr.mp3" : "adhan.mp3");
-      playAudioFile(adhanPath, config.audio.global_volume ?? 0.7);
+      const customRaw = args.customPath ?? args.custom_path ?? args.path;
+      const customPath =
+        typeof customRaw === "string" && customRaw.trim().length > 0 ? customRaw.trim() : null;
+      const volumeRaw = args.volume;
+      const volume =
+        typeof volumeRaw === "number" && Number.isFinite(volumeRaw)
+          ? Math.min(1, Math.max(0, volumeRaw))
+          : (config.audio.global_volume ?? 0.7);
+      const adhanPath =
+        customPath && fs.existsSync(customPath)
+          ? customPath
+          : getAssetPath(isFajr ? "adhan_fajr.mp3" : "adhan.mp3");
+      playAudioFile(adhanPath, volume);
       return null;
     }
     case "play_reminder_sound": {
-      const soundPath = String(args.path ?? args.customPath ?? args.custom_path ?? getAssetPath("classic_alarm.mp3"));
-      playAudioFile(soundPath, config.audio.global_volume ?? 0.7);
+      const customRaw = args.path ?? args.customPath ?? args.custom_path;
+      const customPath =
+        typeof customRaw === "string" && customRaw.trim().length > 0 ? customRaw.trim() : null;
+      const volumeRaw = args.volume;
+      const volume =
+        typeof volumeRaw === "number" && Number.isFinite(volumeRaw)
+          ? Math.min(1, Math.max(0, volumeRaw))
+          : (config.audio.global_volume ?? 0.7);
+      const soundPath =
+        customPath && fs.existsSync(customPath)
+          ? customPath
+          : getAssetPath("classic_alarm.mp3");
+      playAudioFile(soundPath, volume);
       return null;
     }
     case "pause_audio":
-      if (audioWindow && !audioWindow.isDestroyed()) {
-        audioWindow.webContents.send("audio:pause");
-      }
+      sendAudioEvent("audio:pause");
       return null;
     case "resume_audio":
-      if (audioWindow && !audioWindow.isDestroyed()) {
-        audioWindow.webContents.send("audio:resume");
-      }
+      sendAudioEvent("audio:resume");
       return null;
     case "stop_audio":
       stopAudio();
       return null;
+    case "audio:done":
+      playingAudio = false;
+      return null;
     case "dismiss_alert": {
       activeAlert = null;
       stopAudio();
-      emitEvent("prayer-alert-dismissed", null);
+      emitEvent("prayer-alert-dismissed", null, true);
       alertWindow?.hide();
       return null;
     }
     case "get_active_alert":
       return activeAlert;
     case "mark_prayer_completed": {
-      const prayer = String(args.prayer ?? "");
-      const today = new Date().toISOString().slice(0, 10);
-      const entries = getPrayerLog();
-      entries.push({ date: today, prayer, completed: true });
+      const rawPrayer = String(args.prayer ?? "");
+      const key = parsePrayerKey(rawPrayer);
+      if (!key) {
+        throw new Error(`Invalid prayer: ${rawPrayer}`);
+      }
+      const today = localDateStr(new Date());
+      const entries = upsertCompletedPrayer(getPrayerLog(), today, prayerDisplayName(key));
       savePrayerLog(entries);
       activeAlert = null;
       stopAudio();
-      emitEvent("statistics-updated", null);
-      emitEvent("prayer-alert-dismissed", null);
+      emitEvent("statistics-updated", null, true);
+      emitEvent("prayer-alert-dismissed", null, true);
       alertWindow?.hide();
       return null;
     }
@@ -1297,10 +1360,16 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
       return globalShortcut.isRegistered(shortcut);
     }
     case "desktop_open_dialog": {
-      const result = await dialog.showOpenDialog(mainWindow!, {
-        properties: ["openFile"],
-        filters: [{ name: "Audio Files", extensions: ["mp3", "wav", "ogg"] }],
-      });
+      const parent = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+      const result = parent
+        ? await dialog.showOpenDialog(parent, {
+            properties: ["openFile"],
+            filters: [{ name: "Audio Files", extensions: ["mp3", "wav", "ogg"] }],
+          })
+        : await dialog.showOpenDialog({
+            properties: ["openFile"],
+            filters: [{ name: "Audio Files", extensions: ["mp3", "wav", "ogg"] }],
+          });
       if (result.canceled || result.filePaths.length === 0) {
         return null;
       }
@@ -1308,9 +1377,14 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
     }
     case "desktop_open_external": {
       const url = String(args.url ?? "");
-      if (url) {
-        await shell.openExternal(url);
+      if (!url) {
+        return null;
       }
+      if (!isSafeExternalUrl(url)) {
+        log.warn(`Rejected non-http(s) external URL: ${url}`);
+        throw new Error("Only http(s) URLs may be opened externally");
+      }
+      await shell.openExternal(url);
       return null;
     }
     case "desktop_get_version":

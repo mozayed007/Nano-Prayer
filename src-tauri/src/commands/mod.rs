@@ -379,7 +379,7 @@ pub fn get_statistics(
         month: month_stats,
         year: year_stats,
         all_time: all_time_stats,
-        total_prayers_logged: log.entries().len() as u32,
+        total_prayers_logged: log.completed_count(),
         current_streak,
         longest_streak,
     })

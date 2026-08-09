@@ -118,6 +118,11 @@ impl PrayerLog {
         &self.entries
     }
 
+    /// Count of completed prayer log entries (used as total_prayers_logged).
+    pub fn completed_count(&self) -> u32 {
+        self.entries.iter().filter(|entry| entry.completed).count() as u32
+    }
+
     pub fn load() -> Result<Self> {
         let log: Self = confy::load("nano-pray-reminder", "prayer-log")?;
         Ok(log)
@@ -139,5 +144,26 @@ mod tests {
         let date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
         log.mark_completed(date, Prayer::Fajr);
         assert!(log.is_completed(date, Prayer::Fajr));
+    }
+
+    #[test]
+    fn completed_count_only_includes_completed_entries() {
+        let mut log = PrayerLog::new();
+        let date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        log.mark_completed(date, Prayer::Fajr);
+        log.mark_missed(date, Prayer::Dhuhr);
+        assert_eq!(log.len(), 2);
+        assert_eq!(log.completed_count(), 1);
+    }
+
+    #[test]
+    fn mark_completed_replaces_same_day_prayer() {
+        let mut log = PrayerLog::new();
+        let date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        log.mark_missed(date, Prayer::Asr);
+        log.mark_completed(date, Prayer::Asr);
+        assert_eq!(log.len(), 1);
+        assert!(log.is_completed(date, Prayer::Asr));
+        assert_eq!(log.completed_count(), 1);
     }
 }
