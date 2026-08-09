@@ -238,7 +238,10 @@ impl PrayerCalculator {
             {
                 let time_utc = st_tomorrow.time(SalahPrayer::Fajr);
                 let time_local = time_utc.with_timezone(&Local);
-                mins = Some((time_local.signed_duration_since(now)).num_minutes() as i32);
+                let delta = time_local.signed_duration_since(now).num_minutes() as i32;
+                // Historical lookups (date << today) leave next Fajr in the past; do not
+                // report huge negative countdowns that confuse CLI/agent clients.
+                mins = if delta >= 0 { Some(delta) } else { None };
             }
             next_prayer = Some(Prayer::Fajr);
         }
@@ -299,10 +302,79 @@ impl PrayerCalculator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Timelike;
+
     #[test]
     fn t() {
         assert!(PrayerCalculator::new()
             .calculate_today(21.4, 39.8, None)
             .is_ok());
+    }
+
+    #[test]
+    fn prayer_times_are_ordered_for_makkah() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 15).expect("valid date");
+        let times = PrayerCalculator::new()
+            .calculate(date, 21.4225, 39.8262, Some("Makkah".into()))
+            .expect("prayer times");
+        assert_eq!(times.prayers.len(), 6);
+        for window in times.prayers.windows(2) {
+            assert!(
+                window[0].time < window[1].time,
+                "{} should be before {}",
+                window[0].prayer,
+                window[1].prayer
+            );
+        }
+        let fajr = times.get_time(Prayer::Fajr).unwrap().time;
+        let dhuhr = times.get_time(Prayer::Dhuhr).unwrap().time;
+        let maghrib = times.get_time(Prayer::Maghrib).unwrap().time;
+        assert!(fajr.time().hour() < 12);
+        assert!((11..=14).contains(&dhuhr.time().hour()));
+        assert!(maghrib.time().hour() >= 17);
+    }
+
+    #[test]
+    fn historical_day_does_not_report_negative_minutes_to_next() {
+        let date = NaiveDate::from_ymd_opt(2020, 1, 1).expect("valid date");
+        let times = PrayerCalculator::new()
+            .calculate(date, 21.4225, 39.8262, None)
+            .expect("times");
+        if let Some(mins) = times.minutes_to_next {
+            assert!(mins >= 0, "minutes_to_next must not be negative, got {mins}");
+        }
+    }
+
+    #[test]
+    fn adjustments_shift_times_by_minutes() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 15).expect("valid date");
+        let base = PrayerCalculator::new()
+            .calculate(date, 21.4225, 39.8262, None)
+            .expect("base");
+        let adjusted = PrayerCalculator::new()
+            .with_adjustments(PrayerAdjustments {
+                fajr: 5,
+                sunrise: 0,
+                dhuhr: 0,
+                asr: 0,
+                maghrib: 0,
+                isha: 0,
+            })
+            .calculate(date, 21.4225, 39.8262, None)
+            .expect("adjusted");
+        let base_fajr = base.get_time(Prayer::Fajr).unwrap().time;
+        let adj_fajr = adjusted.get_time(Prayer::Fajr).unwrap().time;
+        assert_eq!(
+            (adj_fajr - base_fajr).num_minutes(),
+            5,
+            "fajr adjustment should apply +5 minutes"
+        );
+    }
+
+    #[test]
+    fn prayer_parse_aliases() {
+        assert_eq!(Prayer::parse("zuhr"), Some(Prayer::Dhuhr));
+        assert_eq!(Prayer::parse("ISHA"), Some(Prayer::Isha));
+        assert_eq!(Prayer::parse("nope"), None);
     }
 }

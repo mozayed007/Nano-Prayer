@@ -10,8 +10,10 @@ import {
   flushAudioQueue,
   gregorianToHijri,
   hijriDateFromGregorian,
+  isQuietHour,
   isSafeExternalUrl,
   localDateStr,
+  mergeAppConfig,
   parsePrayerKey,
   prayerDisplayName,
   queueOrDispatchAudio,
@@ -90,6 +92,35 @@ describe("compareSemver", () => {
     assert.ok(compareSemver("0.1.5", "0.1.4") > 0);
     assert.equal(compareSemver("v0.1.5", "0.1.5"), 0);
     assert.ok(compareSemver("0.1.0", "0.2.0") < 0);
+  });
+});
+
+describe("isQuietHour", () => {
+  it("handles same-day and midnight-wrap ranges", () => {
+    assert.equal(isQuietHour(14, 13, 17), true);
+    assert.equal(isQuietHour(12, 13, 17), false);
+    assert.equal(isQuietHour(23, 22, 6), true);
+    assert.equal(isQuietHour(5, 22, 6), true);
+    assert.equal(isQuietHour(6, 22, 6), false);
+    assert.equal(isQuietHour(22, 22, 22), false);
+  });
+});
+
+describe("mergeAppConfig", () => {
+  it("fills missing nested advanced fields from defaults", () => {
+    const defaults = {
+      advanced: { muted: false, auto_start: false, quiet_hours_enabled: false },
+      audio: { global_volume: 0.7 },
+    };
+    const loaded = {
+      advanced: { muted: true },
+      audio: { global_volume: 0.2 },
+    };
+    const merged = mergeAppConfig(defaults, loaded);
+    assert.equal(merged.advanced.muted, true);
+    assert.equal(merged.advanced.auto_start, false);
+    assert.equal(merged.advanced.quiet_hours_enabled, false);
+    assert.equal(merged.audio.global_volume, 0.2);
   });
 });
 

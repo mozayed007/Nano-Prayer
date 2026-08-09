@@ -52,6 +52,47 @@ export function localDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Quiet hours from whole-hour config (matches core `is_quiet_hour`).
+ * Range is [start, end); supports midnight wrap. Equal start/end = never quiet.
+ */
+export function isQuietHour(hour: number, startHour: number, endHour: number): boolean {
+  const h = Math.min(23, Math.max(0, Math.trunc(hour)));
+  const start = Math.min(23, Math.max(0, Math.trunc(startHour)));
+  const end = Math.min(23, Math.max(0, Math.trunc(endHour)));
+  if (start === end) return false;
+  if (start < end) return h >= start && h < end;
+  return h >= start || h < end;
+}
+
+/** Deep-merge partial persisted config onto defaults (old installs miss new fields). */
+export function mergeAppConfig<T>(defaults: T, loaded: unknown): T {
+  if (loaded == null || typeof loaded !== "object" || Array.isArray(loaded)) {
+    return structuredClone(defaults);
+  }
+  if (defaults == null || typeof defaults !== "object" || Array.isArray(defaults)) {
+    return structuredClone(defaults);
+  }
+  const out = structuredClone(defaults) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(loaded as Record<string, unknown>)) {
+    if (value === undefined || value === null) continue;
+    const baseVal = out[key];
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      baseVal &&
+      typeof baseVal === "object" &&
+      !Array.isArray(baseVal)
+    ) {
+      out[key] = mergeAppConfig(baseVal, value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out as T;
+}
+
 export function toArabicNumerals(n: number): string {
   return String(Math.trunc(n))
     .split("")

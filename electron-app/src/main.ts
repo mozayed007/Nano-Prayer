@@ -31,8 +31,10 @@ import {
   createAudioDispatchState,
   flushAudioQueue,
   hijriDateFromGregorian,
+  isQuietHour,
   isSafeExternalUrl,
   localDateStr,
+  mergeAppConfig,
   parsePrayerKey,
   prayerDisplayName,
   queueOrDispatchAudio,
@@ -188,19 +190,8 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function getConfig(): AppConfig {
-  const loaded = readJson<AppConfig | null>(configFile(), null);
-  const config = loaded ?? {
-    ...defaultConfig,
-    locations: defaultConfig.locations.map((loc) => ({ ...loc })),
-    reminders: Object.fromEntries(
-      Object.entries(defaultConfig.reminders).map(([k, v]) => [k, { ...v }])
-    ),
-    prayer_adjustments: { ...defaultConfig.prayer_adjustments },
-    audio: { ...defaultConfig.audio },
-    notifications: { ...defaultConfig.notifications },
-    appearance: { ...defaultConfig.appearance },
-    advanced: { ...defaultConfig.advanced },
-  };
+  const loaded = readJson<unknown>(configFile(), null);
+  const config = mergeAppConfig<AppConfig>(defaultConfig, loaded);
   if (config.advanced.muted === undefined) {
     config.advanced.muted = false;
   }
@@ -812,6 +803,18 @@ function triggerReminderCheck(): void {
     return;
   }
 
+  // Quiet hours: keep tray countdown, suppress alerts + audio (matches Tauri).
+  if (
+    config.advanced.quiet_hours_enabled &&
+    isQuietHour(
+      now.getHours(),
+      config.advanced.quiet_hours_start,
+      config.advanced.quiet_hours_end,
+    )
+  ) {
+    return;
+  }
+
   prayerOrder.forEach((prayer) => {
     const key = prayerName(prayer).toLowerCase();
     const reminder = config.reminders[key] as ReminderConfig | undefined;
@@ -846,6 +849,9 @@ function triggerReminderCheck(): void {
       };
       firedReminders.add(beforeKey);
       showAlert(payload);
+      if (reminder.show_notification) {
+        maybeNotify(payload.title, payload.body);
+      }
       if (reminder.play_sound_before) {
         const soundPath =
           reminder.custom_reminder_sound && fs.existsSync(reminder.custom_reminder_sound)
@@ -896,6 +902,9 @@ function triggerReminderCheck(): void {
       };
       firedReminders.add(afterKey);
       showAlert(payload);
+      if (reminder.show_notification) {
+        maybeNotify(payload.title, payload.body);
+      }
       if (reminder.play_sound_after) {
         const soundPath =
           reminder.custom_reminder_sound && fs.existsSync(reminder.custom_reminder_sound)
@@ -956,8 +965,17 @@ function createMainWindow(): void {
     },
   });
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
+  mainWindow.once("ready-to-show", () => {
+    const cfg = getConfig();
+    const launchHidden =
+      !!cfg.advanced.start_minimized || process.argv.includes("--hidden");
+    if (launchHidden) {
+      mainWindow?.hide();
+      isMainWindowVisible = false;
+      log.info("Started minimized (start_minimized or --hidden)");
+    } else {
+      mainWindow?.show();
+    }
   });
 
   if (isDev) {

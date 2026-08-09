@@ -1,6 +1,6 @@
 {
   "name": "nano-pray-reminder",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": false,
   "license": "MIT",
   "author": "Mo Zayed",
@@ -14,6 +14,9 @@
     "preview": "vite preview",
     "prune:target": "pwsh -NoProfile -File ./scripts/prune-target.ps1",
     "check:rust": "cargo check --workspace",
+    "test:rust": "cargo test --workspace",
+    "test:electron": "npm --prefix electron-app test",
+    "check:all": "npm run check:rust && npm run test:rust && npm run electron:build && npm run test:electron",
     "ax:cli": "cargo run -p nano-pray-cli --",
     "ax:mcp": "cargo run -p nano-pray-mcp",
     "tauri": "tauri",

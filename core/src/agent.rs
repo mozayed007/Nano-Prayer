@@ -350,3 +350,41 @@ pub fn current_month(config: &AppConfig) -> Result<Vec<AgentPrayerTimes>> {
     let today = Local::now().date_naive();
     monthly_prayer_times(config, today.year(), today.month(), None, None)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prayer_times_for_makkah_returns_six_entries() {
+        let config = AppConfig::default();
+        let date = NaiveDate::from_ymd_opt(2024, 6, 15).expect("date");
+        let times = prayer_times(&config, date, Some(21.4225), Some(39.8262), Some("Makkah".into()))
+            .expect("times");
+        assert_eq!(times.prayers.len(), 6);
+        assert_eq!(times.location.latitude, 21.4225);
+        assert!(times.qibla_direction.distance_km < 1.0);
+    }
+
+    #[test]
+    fn qibla_cairo_is_southeastish() {
+        let q = qibla_direction(30.0444, 31.2357).expect("qibla");
+        assert!(q.degrees > 90.0 && q.degrees < 180.0);
+        assert!(q.distance_km > 1000.0);
+    }
+
+    #[test]
+    fn hijri_date_is_not_gregorian_year() {
+        let h = hijri_date(None);
+        assert!(h.year < 2000);
+        assert!(!h.formatted.is_empty());
+        assert!(!h.formatted_arabic.is_empty());
+    }
+
+    #[test]
+    fn search_cities_finds_cairo() {
+        let hits = search_cities("Cairo", 5);
+        assert!(!hits.is_empty());
+        assert!(hits.iter().any(|c| c.name.contains("Cairo")));
+    }
+}

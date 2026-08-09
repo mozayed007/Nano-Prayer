@@ -21,7 +21,7 @@ pub use hijri::HijriDate;
 pub use location::{City, Coordinates, LocationManager};
 pub use prayer::{PrayerCalculator, PrayerInfo, PrayerTimes};
 pub use qibla::QiblaDirection;
-pub use reminder::{Reminder, ReminderScheduler};
+pub use reminder::{is_quiet_hour, is_quiet_hours_range, Reminder, ReminderScheduler};
 pub use statistics::{PrayerLog, Statistics};
 
 /// Prelude for common imports

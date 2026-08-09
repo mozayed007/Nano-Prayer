@@ -1,8 +1,10 @@
 use crate::audio::AudioState;
 use crate::commands::{ActiveAlertPayload, AppState};
 use chrono::{DateTime, Local, NaiveDate};
+use chrono::Timelike;
 use nano_pray_core::config::{AppConfig, ReminderConfig};
 use nano_pray_core::prayer::{Prayer, PrayerCalculator, PrayerInfo};
+use nano_pray_core::reminder::is_quiet_hour;
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tauri::Emitter;
@@ -146,6 +148,18 @@ impl Scheduler {
             }
         }
 
+        // Quiet hours: keep tray/countdown, suppress alerts + audio.
+        if config.advanced.quiet_hours_enabled
+            && is_quiet_hour(
+                now.hour() as u8,
+                config.advanced.quiet_hours_start,
+                config.advanced.quiet_hours_end,
+            )
+        {
+            tracing::debug!("Quiet hours active; skipping reminder alerts");
+            return Ok(());
+        }
+
         for prayer_info in &times.prayers {
             self.check_prayer(&config, prayer_info, now).await?;
         }
@@ -212,6 +226,10 @@ impl Scheduler {
                     title: title.clone(),
                     body: body.clone(),
                 };
+                if reminder_config.show_notification {
+                    let _ = self.send_notification(&title, &body);
+                }
+
                 self.emit_alert(payload).await;
 
                 if reminder_config.play_sound_before {
@@ -275,6 +293,11 @@ impl Scheduler {
                     title: title.clone(),
                     body: body.clone(),
                 };
+
+                if reminder_config.show_notification {
+                    let _ = self.send_notification(&title, &body);
+                }
+
                 self.emit_alert(payload).await;
 
                 if reminder_config.play_sound_after {
@@ -446,5 +469,22 @@ fn format_next_prayer_tooltip(next_prayer: &str, minutes_to_next: Option<i32>) -
         format!("{}h till {}", hours, next_prayer)
     } else {
         format!("{}m till {}", minutes, next_prayer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_next_prayer_tooltip;
+
+    #[test]
+    fn tooltip_formats_hours_and_minutes() {
+        assert_eq!(
+            format_next_prayer_tooltip("Dhuhr", Some(75)),
+            "1h 15m till Dhuhr"
+        );
+        assert_eq!(format_next_prayer_tooltip("Asr", Some(60)), "1h till Asr");
+        assert_eq!(format_next_prayer_tooltip("Maghrib", Some(9)), "9m till Maghrib");
+        assert_eq!(format_next_prayer_tooltip("Isha", Some(0)), "Now: Isha");
+        assert_eq!(format_next_prayer_tooltip("Fajr", None), "Next: Fajr");
     }
 }

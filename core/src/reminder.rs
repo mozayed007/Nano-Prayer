@@ -168,13 +168,7 @@ impl ReminderScheduler {
     }
 
     fn is_quiet_hours(&self, now: DateTime<Local>) -> bool {
-        let current_time = now.time();
-
-        if self.quiet_hours_start < self.quiet_hours_end {
-            current_time >= self.quiet_hours_start && current_time < self.quiet_hours_end
-        } else {
-            current_time >= self.quiet_hours_start || current_time < self.quiet_hours_end
-        }
+        is_quiet_hours_range(now.time(), self.quiet_hours_start, self.quiet_hours_end)
     }
 
     pub fn mute_for(&mut self, duration: Duration) {
@@ -194,6 +188,31 @@ impl ReminderScheduler {
     }
 }
 
+/// True when `current` falls in quiet hours `[start, end)`.
+/// Supports ranges that wrap midnight (e.g. 22:00 → 06:00).
+/// Equal start/end is treated as disabled (never quiet).
+pub fn is_quiet_hours_range(current: NaiveTime, start: NaiveTime, end: NaiveTime) -> bool {
+    if start == end {
+        return false;
+    }
+    if start < end {
+        current >= start && current < end
+    } else {
+        current >= start || current < end
+    }
+}
+
+/// Quiet-hours check from whole-hour settings stored in `AppConfig.advanced`.
+pub fn is_quiet_hour(hour: u8, start_hour: u8, end_hour: u8) -> bool {
+    let hour = hour.min(23);
+    let start_hour = start_hour.min(23);
+    let end_hour = end_hour.min(23);
+    let current = NaiveTime::from_hms_opt(hour as u32, 0, 0).unwrap_or(NaiveTime::MIN);
+    let start = NaiveTime::from_hms_opt(start_hour as u32, 0, 0).unwrap_or(NaiveTime::MIN);
+    let end = NaiveTime::from_hms_opt(end_hour as u32, 0, 0).unwrap_or(NaiveTime::MIN);
+    is_quiet_hours_range(current, start, end)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -203,5 +222,40 @@ mod tests {
         let time = Local::now() + Duration::hours(2);
         let reminder = Reminder::before(Prayer::Fajr, time, 15);
         assert_eq!(reminder.prayer, Prayer::Fajr);
+    }
+
+    #[test]
+    fn quiet_hours_same_day_range() {
+        assert!(is_quiet_hour(14, 13, 17));
+        assert!(!is_quiet_hour(12, 13, 17));
+        assert!(!is_quiet_hour(17, 13, 17));
+    }
+
+    #[test]
+    fn quiet_hours_wrap_midnight() {
+        // 22:00–06:00
+        assert!(is_quiet_hour(23, 22, 6));
+        assert!(is_quiet_hour(0, 22, 6));
+        assert!(is_quiet_hour(5, 22, 6));
+        assert!(!is_quiet_hour(6, 22, 6));
+        assert!(!is_quiet_hour(12, 22, 6));
+        assert!(!is_quiet_hour(21, 22, 6));
+    }
+
+    #[test]
+    fn quiet_hours_equal_start_end_is_never_quiet() {
+        assert!(!is_quiet_hour(22, 22, 22));
+        assert!(!is_quiet_hour(0, 0, 0));
+    }
+
+    #[test]
+    fn quiet_hours_blocks_scheduler_events() {
+        let mut scheduler = ReminderScheduler::default();
+        scheduler.quiet_hours_enabled = true;
+        scheduler.quiet_hours_start = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+        scheduler.quiet_hours_end = NaiveTime::from_hms_opt(23, 59, 59).unwrap();
+        let past = Local::now() - Duration::minutes(1);
+        scheduler.reminders.push(Reminder::on_time(Prayer::Dhuhr, past));
+        assert!(scheduler.check_reminders().is_empty());
     }
 }

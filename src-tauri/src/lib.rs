@@ -137,6 +137,19 @@ pub fn run() {
                         }
                     }
                 }
+
+                // Honor start_minimized and autostart --hidden flag.
+                let launch_hidden = loaded_config.advanced.start_minimized
+                    || std::env::args().any(|arg| arg == "--hidden");
+                if launch_hidden {
+                    if let Some(window) = app.get_webview_window("main") {
+                        if let Err(err) = window.hide() {
+                            tracing::warn!("Failed to start minimized: {}", err);
+                        } else {
+                            tracing::info!("Started minimized to tray/background.");
+                        }
+                    }
+                }
             }
 
             if let Ok(loaded_log) = PrayerLog::load() {
