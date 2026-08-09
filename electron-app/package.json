@@ -16,17 +16,21 @@
     "build:main": "tsc -p tsconfig.json",
     "build": "npm run build:main",
     "test": "npm run build:main && node --test dist/prayer-logic.test.js",
+    "test:e2e": "npm run build:main && playwright test",
+    "test:e2e:report": "playwright show-report e2e-report",
     "dist": "npm run build:main && electron-builder --config electron-builder.json"
   },
   "dependencies": {
+    "@electron/fuses": "^1.8.0",
     "adhan": "^4.4.3",
-    "electron-log": "^5.4.3",
-    "@electron/fuses": "^1.8.0"
+    "electron-log": "^5.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.13.10",
     "electron": "^41.1.1",
     "electron-builder": "^26.8.2",
+    "serve": "^14.2.6",
     "typescript": "^5.8.2"
   }
 }

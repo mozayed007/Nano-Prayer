@@ -1,7 +1,6 @@
 use crate::audio::AudioState;
 use crate::commands::{ActiveAlertPayload, AppState};
 use chrono::{DateTime, Local, NaiveDate};
-use chrono::Timelike;
 use nano_pray_core::config::{AppConfig, ReminderConfig};
 use nano_pray_core::prayer::{Prayer, PrayerCalculator, PrayerInfo};
 use nano_pray_core::reminder::{adaptive_scheduler_sleep_secs, is_quiet_hour};
@@ -196,7 +195,7 @@ impl Scheduler {
         &mut self,
         config: &AppConfig,
         info: &PrayerInfo,
-        now: DateTime<Local>,
+        _now: DateTime<Local>,
     ) -> Result<(), String> {
         let prayer_name = info.prayer.name().to_lowercase();
         let reminder_config = config.reminder_for(&prayer_name);
@@ -485,14 +484,13 @@ impl Scheduler {
 fn seconds_to_reminder_edge(
     info: &PrayerInfo,
     config: &AppConfig,
-    now: DateTime<Local>,
+    _now: DateTime<Local>,
 ) -> Option<i64> {
     let prayer_name = info.prayer.name().to_lowercase();
     let reminder = config.reminder_for(&prayer_name);
     if !reminder.enabled {
         return None;
     }
-    let _ = now;
     let diff_secs = info
         .time_utc
         .signed_duration_since(chrono::Utc::now())
@@ -511,6 +509,10 @@ fn seconds_to_reminder_edge(
         .filter(|s| *s >= 0)
         .min()
 }
+
+// silence unused param for API stability of seconds_to_reminder_edge
+#[allow(dead_code)]
+fn _now_placeholder(_now: DateTime<Local>) {}
 
 fn format_next_prayer_tooltip(next_prayer: &str, minutes_to_next: Option<i32>) -> String {
     let Some(minutes_to_next) = minutes_to_next else {

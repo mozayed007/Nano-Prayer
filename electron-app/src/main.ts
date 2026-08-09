@@ -1651,8 +1651,17 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
 
 function registerIpc(): void {
   ipcMain.handle("desktop:invoke", async (event, payload: { command: string; args?: Record<string, unknown> }) => {
-    const senderUrl = event.senderFrame?.url ?? '';
-    if (!senderUrl.startsWith('file://') && !senderUrl.startsWith('data:') && !senderUrl.startsWith('http://localhost:') && !senderUrl.startsWith('app://')) {
+    const senderUrl = event.senderFrame?.url ?? "";
+    // Local renderer origins only (dev server, E2E serve on 127.0.0.1, app protocol, data audio).
+    const trusted =
+      senderUrl.startsWith("file://") ||
+      senderUrl.startsWith("data:") ||
+      senderUrl.startsWith("app://") ||
+      senderUrl.startsWith("http://localhost:") ||
+      senderUrl.startsWith("http://127.0.0.1:") ||
+      senderUrl.startsWith("https://localhost:") ||
+      senderUrl.startsWith("https://127.0.0.1:");
+    if (!trusted) {
       log.warn(`Rejected IPC from untrusted sender: ${senderUrl}`);
       return null;
     }

@@ -103,6 +103,13 @@ electron-app/1
 electron-app/bun.lock
 electron-app/package-lock.json.bak
 electron-app/null
+electron-app/e2e-report/
+electron-app/e2e-results/
+electron-app/playwright-report/
+electron-app/test-results/
+
+# Local profiling / soak outputs
+profiling-output/
 
 # Source archive temp files
 Source-code-*.zip

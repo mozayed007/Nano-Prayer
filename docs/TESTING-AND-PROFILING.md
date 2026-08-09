@@ -118,7 +118,7 @@ Electron mirrors this with `Intl` (`civilDateStrInZone`, `formatHmInZone`).
 
 ---
 
-## 4. Minimal commands checklist
+## 4. Commands checklist (implemented scripts)
 
 ```powershell
 # Unit
@@ -133,4 +133,55 @@ npm --prefix electron-app test
 
 # Frontend
 npm run build
+
+# Electron E2E (Playwright + real main/preload/IPC; serves build/ on :4173)
+npm run test:e2e:electron
+# or: pwsh -File scripts/run-e2e-electron.ps1
+
+# Resource soak (CSV under profiling-output/)
+npm run soak -- -DurationMin 15 -Target electron -Launch
+# Full soak example:
+# pwsh -File scripts/soak-resources.ps1 -DurationMin 240 -IntervalSec 30 -Target both -Launch
+
+# Profiling
+npm run profile:tauri -- -Seconds 90    # prefers samply → Firefox Profiler
+npm run profile:electron                # --inspect=9229 → chrome://inspect
 ```
+
+### E2E layout
+
+| Path | Role |
+|------|------|
+| `electron-app/e2e/electron-app.spec.ts` | Real Electron + IPC assertions |
+| `electron-app/playwright.config.ts` | Serves `../build`, single worker |
+| `scripts/run-e2e-electron.ps1` | Frontend + main build then Playwright |
+
+### Profiling layout
+
+| Path | Role |
+|------|------|
+| `scripts/profile-tauri.ps1` | Release build + samply or WPR notes |
+| `scripts/profile-electron.ps1` | Inspect session for Chrome flame chart |
+| `scripts/soak-resources.ps1` | CPU delta + RSS CSV soak |
+| `profiling-output/` | Generated artifacts (gitignored) |
+
+### Install once (profiling)
+
+```powershell
+cargo install samply
+# Required on Windows for samply ETW capture:
+# Install Windows Performance Toolkit (xperf) from ADK:
+# https://go.microsoft.com/fwlink/?linkid=2243390
+# (uncheck everything except "Windows Performance Toolkit")
+```
+
+If samply reports `Could not start xperf`, install WPT first, then re-run `npm run profile:tauri`.
+
+### Verified in this environment (2026-08-09)
+
+| Check | Result |
+|-------|--------|
+| Electron Playwright E2E | **6/6 passed** (IPC get_config, prayer times, hijri, version, 8s smoke) |
+| Soak 2 min Electron | CSV written; ws_avg ~76 MB, low CPU delta sum |
+| samply without WPT | Fails with clear xperf install message |
+| Release Tauri build | Succeeds via `profile-tauri.ps1` |
