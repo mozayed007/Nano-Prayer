@@ -21,6 +21,7 @@ import {
   prayerDisplayName,
   queueOrDispatchAudio,
   resetAudioDispatch,
+  resolveUpdateStatus,
   suggestHijriOffset,
   toArabicNumerals,
   upsertCompletedPrayer,
@@ -96,6 +97,27 @@ describe("compareSemver", () => {
     assert.ok(compareSemver("0.1.5", "0.1.4") > 0);
     assert.equal(compareSemver("v0.1.5", "0.1.5"), 0);
     assert.ok(compareSemver("0.1.0", "0.2.0") < 0);
+  });
+});
+
+describe("resolveUpdateStatus", () => {
+  it("detects available update including pre-release channel", () => {
+    const r = resolveUpdateStatus("0.1.5", "0.1.6", true);
+    assert.equal(r.available, true);
+    assert.equal(r.status, "update");
+    assert.match(r.message, /pre-release/i);
+  });
+
+  it("treats same version as current (even if latest is prerelease)", () => {
+    const r = resolveUpdateStatus("0.1.6", "0.1.6", true);
+    assert.equal(r.available, false);
+    assert.equal(r.status, "current");
+  });
+
+  it("reports ahead when local is newer than public", () => {
+    const r = resolveUpdateStatus("0.2.0", "0.1.6", false);
+    assert.equal(r.available, false);
+    assert.equal(r.status, "ahead");
   });
 });
 

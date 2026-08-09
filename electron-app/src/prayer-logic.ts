@@ -327,6 +327,39 @@ export function compareSemver(a: string, b: string): number {
 }
 
 /**
+ * Decide update UI status from current app version vs newest public GitHub release.
+ * Includes pre-releases (must not use /releases/latest alone).
+ */
+export function resolveUpdateStatus(
+  currentVersion: string,
+  latestVersion: string,
+  isPrerelease: boolean,
+): { available: boolean; status: "update" | "current" | "ahead"; message: string } {
+  const cmp = compareSemver(currentVersion, latestVersion);
+  if (cmp < 0) {
+    return {
+      available: true,
+      status: "update",
+      message: `Version ${latestVersion}${isPrerelease ? " (pre-release)" : ""} is available!`,
+    };
+  }
+  if (cmp === 0) {
+    return {
+      available: false,
+      status: "current",
+      message: isPrerelease
+        ? "You are on the latest version. You are on the latest pre-release."
+        : "You are on the latest version.",
+    };
+  }
+  return {
+    available: false,
+    status: "ahead",
+    message: `You are on ${currentVersion}, which is newer than the latest public release (${latestVersion}).`,
+  };
+}
+
+/**
  * Upsert a completed prayer log entry for a local calendar day.
  * Returns a new array (does not mutate input).
  */

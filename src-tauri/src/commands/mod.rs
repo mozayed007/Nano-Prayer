@@ -913,3 +913,211 @@ pub fn update_reminder_settings(
     state.scheduler_wakeup.notify_one();
     Ok(())
 }
+
+/// Unified update-check result for the About tab (Tauri + Electron shape).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopUpdateCheck {
+    pub available: bool,
+    pub current_version: String,
+    pub latest_version: String,
+    pub release_url: String,
+    pub release_notes: String,
+    pub published_at: String,
+    pub is_prerelease: bool,
+    /// "update" | "current" | "ahead" | "empty" | "error"
+    pub status: String,
+    pub message: String,
+    pub error: Option<String>,
+}
+
+fn strip_version(v: &str) -> String {
+    v.trim().trim_start_matches('v').trim_start_matches('V').to_string()
+}
+
+/// Compare semver-ish strings. Returns -1 / 0 / 1.
+fn compare_semver(a: &str, b: &str) -> i32 {
+    let strip = |s: &str| {
+        strip_version(s)
+            .split(|c| c == '.' || c == '-' || c == '+')
+            .map(|p| p.parse::<u32>().unwrap_or(0))
+            .collect::<Vec<_>>()
+    };
+    let pa = strip(a);
+    let pb = strip(b);
+    let len = pa.len().max(pb.len());
+    for i in 0..len {
+        let na = *pa.get(i).unwrap_or(&0);
+        let nb = *pb.get(i).unwrap_or(&0);
+        if na < nb {
+            return -1;
+        }
+        if na > nb {
+            return 1;
+        }
+    }
+    0
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GhRelease {
+    tag_name: Option<String>,
+    html_url: Option<String>,
+    body: Option<String>,
+    published_at: Option<String>,
+    draft: Option<bool>,
+    prerelease: Option<bool>,
+}
+
+/// Check GitHub releases (including pre-releases). Runs in the native process so
+/// WebView CSP cannot block it (renderer fetch fails with "Failed to fetch").
+#[tauri::command]
+pub async fn desktop_check_update(
+    app: tauri::AppHandle,
+) -> std::result::Result<DesktopUpdateCheck, String> {
+    let current_version = app.package_info().version.to_string();
+    let client = reqwest::Client::builder()
+        .user_agent("NanoPrayReminder-Tauri")
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .get("https://api.github.com/repos/mozayed007/Nano-Prayer/releases")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_timeout() {
+                "Request timed out. Check your network connection.".to_string()
+            } else if e.is_connect() {
+                "Could not reach GitHub. Check your network connection.".to_string()
+            } else {
+                format!("Network error: {e}")
+            }
+        })?;
+
+    let status = response.status();
+    if status.as_u16() == 403 {
+        return Ok(DesktopUpdateCheck {
+            available: false,
+            current_version: current_version.clone(),
+            latest_version: String::new(),
+            release_url: "https://github.com/mozayed007/Nano-Prayer/releases".into(),
+            release_notes: String::new(),
+            published_at: String::new(),
+            is_prerelease: false,
+            status: "error".into(),
+            message: "GitHub API rate limited. Try again later.".into(),
+            error: Some("rate_limited".into()),
+        });
+    }
+    if status.as_u16() == 404 {
+        return Ok(DesktopUpdateCheck {
+            available: false,
+            current_version: current_version.clone(),
+            latest_version: String::new(),
+            release_url: "https://github.com/mozayed007/Nano-Prayer/releases".into(),
+            release_notes: String::new(),
+            published_at: String::new(),
+            is_prerelease: false,
+            status: "empty".into(),
+            message: "No releases found yet.".into(),
+            error: None,
+        });
+    }
+    if !status.is_success() {
+        return Err(format!(
+            "GitHub API returned {status}: {}",
+            status.canonical_reason().unwrap_or("error")
+        ));
+    }
+
+    let releases: Vec<GhRelease> = response.json().await.map_err(|e| e.to_string())?;
+    let published: Vec<&GhRelease> = releases
+        .iter()
+        .filter(|r| r.draft != Some(true) && r.tag_name.as_ref().is_some_and(|t| !t.is_empty()))
+        .collect();
+
+    if published.is_empty() {
+        return Ok(DesktopUpdateCheck {
+            available: false,
+            current_version: current_version.clone(),
+            latest_version: String::new(),
+            release_url: "https://github.com/mozayed007/Nano-Prayer/releases".into(),
+            release_notes: String::new(),
+            published_at: String::new(),
+            is_prerelease: false,
+            status: "empty".into(),
+            message: "No public releases available yet.".into(),
+            error: None,
+        });
+    }
+
+    // GitHub list is newest-first; pick first non-draft as "latest" (stable or pre).
+    let latest = published[0];
+    let latest_version = strip_version(latest.tag_name.as_deref().unwrap_or(""));
+    let is_prerelease = latest.prerelease.unwrap_or(false);
+    let cmp = compare_semver(&current_version, &latest_version);
+
+    let (available, status_code, message) = if cmp < 0 {
+        let kind = if is_prerelease {
+            " (pre-release)"
+        } else {
+            ""
+        };
+        (
+            true,
+            "update",
+            format!("Version {latest_version}{kind} is available!"),
+        )
+    } else if cmp == 0 {
+        let kind = if is_prerelease {
+            " You are on the latest pre-release."
+        } else {
+            ""
+        };
+        (
+            false,
+            "current",
+            format!("You are on the latest version.{kind}"),
+        )
+    } else {
+        (
+            false,
+            "ahead",
+            format!(
+                "You are on {current_version}, which is newer than the latest public release ({latest_version})."
+            ),
+        )
+    };
+
+    Ok(DesktopUpdateCheck {
+        available,
+        current_version,
+        latest_version,
+        release_url: latest
+            .html_url
+            .clone()
+            .unwrap_or_else(|| "https://github.com/mozayed007/Nano-Prayer/releases".into()),
+        release_notes: latest.body.clone().unwrap_or_default(),
+        published_at: latest.published_at.clone().unwrap_or_default(),
+        is_prerelease,
+        status: status_code.into(),
+        message,
+        error: None,
+    })
+}
+
+#[cfg(test)]
+mod update_tests {
+    use super::compare_semver;
+
+    #[test]
+    fn compare_semver_orders_versions() {
+        assert_eq!(compare_semver("0.1.5", "0.1.6"), -1);
+        assert_eq!(compare_semver("0.1.6", "0.1.6"), 0);
+        assert_eq!(compare_semver("v0.1.6", "0.1.6"), 0);
+        assert_eq!(compare_semver("0.2.0", "0.1.9"), 1);
+    }
+}

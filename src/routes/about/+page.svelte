@@ -1,89 +1,129 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
-  import { getAppVersion, openExternal } from "$lib/desktop/api";
+  import { getAppVersion, openExternal, invoke } from "$lib/desktop/api";
+
+  /** Native desktop update check result (Tauri + Electron). */
+  type DesktopUpdateCheck = {
+    available: boolean;
+    currentVersion: string;
+    latestVersion: string;
+    releaseUrl: string;
+    releaseNotes: string;
+    publishedAt: string;
+    isPrerelease: boolean;
+    status: "update" | "current" | "ahead" | "empty" | "error" | string;
+    message: string;
+    error?: string | null;
+  };
 
   let appVersion = $state("");
   let checking = $state(false);
   let updateMessage = $state("");
   let hasUpdate = $state(false);
   let releaseUrl = $state("");
+  let lastStatus = $state<string>("");
+  let checkError = $state(false);
 
   onMount(async () => {
     try {
       appVersion = await getAppVersion();
     } catch (e) {
       console.warn("Could not get app version", e);
+      appVersion = "0.0.0";
     }
   });
+
+  function isDesktop(): boolean {
+    return (
+      typeof window !== "undefined" &&
+      ("__TAURI_INTERNALS__" in window ||
+        "__TAURI__" in window ||
+        "electronAPI" in window)
+    );
+  }
 
   async function checkForUpdates() {
     checking = true;
     updateMessage = "Checking GitHub for updates...";
     hasUpdate = false;
     releaseUrl = "";
+    checkError = false;
+    lastStatus = "";
 
     try {
-      // Fetch all releases (including pre-releases) from GitHub API
-      const response = await fetch(
-        "https://api.github.com/repos/mozayed007/Nano-Prayer/releases",
-      );
-
-      if (response.status === 404) {
-        updateMessage = "No releases found yet.";
+      if (!isDesktop()) {
+        updateMessage =
+          "Update checks run in the desktop app. Open NanoPrayer (Tauri or Electron) to check.";
+        checkError = true;
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(`GitHub API returned ${response.status}`);
-      }
+      // Always go through native main process — WebView CSP blocks renderer fetch to api.github.com.
+      const result = await invoke<DesktopUpdateCheck | null>("desktop_check_update");
 
-      const data = await response.json();
-
-      if (!Array.isArray(data) || data.length === 0) {
-        updateMessage = "No releases found yet.";
+      if (!result) {
+        updateMessage =
+          "Could not check for updates (no response). Try again later or open the releases page.";
+        checkError = true;
+        releaseUrl = "https://github.com/mozayed007/Nano-Prayer/releases";
         return;
       }
 
-      // GitHub returns ordered by creation date, [0] is the newest release/pre-release
-      const latestRelease = data[0];
-      const latestVersion = latestRelease.tag_name.replace(/^v/, ""); // Remove 'v' prefix if present
+      lastStatus = result.status || "";
+      hasUpdate = !!result.available;
+      releaseUrl = result.releaseUrl || "";
+      updateMessage =
+        result.message ||
+        (hasUpdate
+          ? `Version ${result.latestVersion} is available!`
+          : "You are on the latest version.");
 
-      // Simple version comparison
-      if (appVersion && isNewerVersion(appVersion, latestVersion)) {
-        hasUpdate = true;
-        const releaseType = latestRelease.prerelease ? " (Pre-release)" : "";
-        updateMessage = `Version ${latestVersion}${releaseType} is available!`;
-        releaseUrl = latestRelease.html_url;
-      } else {
-        updateMessage = "You are on the latest version.";
+      if (result.status === "error") {
+        checkError = true;
+        hasUpdate = false;
+        if (!releaseUrl) {
+          releaseUrl = "https://github.com/mozayed007/Nano-Prayer/releases";
+        }
       }
     } catch (e) {
-      updateMessage = `Failed to check for updates: ${e}`;
+      checkError = true;
+      hasUpdate = false;
+      const msg = e instanceof Error ? e.message : String(e);
+      // Surface actionable text instead of raw TypeError: Failed to fetch
+      if (/failed to fetch|network|csp|connect/i.test(msg)) {
+        updateMessage =
+          "Could not reach GitHub from the app. Check your network, then try again.";
+      } else {
+        updateMessage = `Failed to check for updates: ${msg}`;
+      }
+      releaseUrl = "https://github.com/mozayed007/Nano-Prayer/releases";
     } finally {
       checking = false;
     }
   }
 
-  // Helper to compare semver strings (very basic)
-  function isNewerVersion(current: string, latest: string): boolean {
-    const v1 = current.split(".").map(Number);
-    const v2 = latest.split(".").map(Number);
-
-    for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
-      const num1 = v1[i] || 0;
-      const num2 = v2[i] || 0;
-      if (num2 > num1) return true;
-      if (num2 < num1) return false;
+  async function openDownloadPage() {
+    const url =
+      releaseUrl || "https://github.com/mozayed007/Nano-Prayer/releases";
+    try {
+      updateMessage = "Opening browser...";
+      await openExternal(url);
+      // Restore context after open
+      if (hasUpdate) {
+        updateMessage = lastStatus === "update" ? updateMessage : "Opening browser...";
+      }
+    } catch (e) {
+      updateMessage = `Could not open browser: ${e}`;
+      checkError = true;
     }
-    return false;
   }
 
-  async function openDownloadPage() {
-    if (releaseUrl) {
-      updateMessage = "Opening browser...";
-      await openExternal(releaseUrl);
-    }
+  function messageClass(): string {
+    if (checkError) return "text-amber-400 font-medium";
+    if (hasUpdate) return "text-green-500 font-medium";
+    if (lastStatus === "ahead") return "text-blue-400 font-medium";
+    return "text-[var(--text-muted)]";
   }
 </script>
 
@@ -129,31 +169,48 @@
       {#if checking}
         <div
           class="w-6 h-6 border-2 border-[var(--text-main)]/30 border-t-[var(--text-main)] rounded-full animate-spin"
+          aria-hidden="true"
         ></div>
-        <p class="text-sm text-[var(--text-muted)]">{updateMessage}</p>
+        <p class="text-sm text-[var(--text-muted)]" role="status">{updateMessage}</p>
       {:else}
-        <p
-          class="text-sm {hasUpdate
-            ? 'text-green-500 font-medium'
-            : 'text-[var(--text-muted)]'} min-h-[1.5rem]"
-        >
+        <p class="text-sm {messageClass()} min-h-[1.5rem]" role="status">
           {updateMessage || "Keep your app up to date"}
         </p>
-        {#if hasUpdate}
-          <button
-            onclick={openDownloadPage}
-            class="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-xl font-medium transition-all shadow-lg hover:shadow-green-500/25 active:scale-95 flex items-center gap-2"
-          >
-            <span>🌐</span> Go to Download Page
-          </button>
-        {:else}
-          <button
-            onclick={checkForUpdates}
-            class="bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] px-6 py-2.5 rounded-xl font-medium transition-all border border-[var(--glass-border)] active:scale-95 flex items-center gap-2"
-          >
-            <span>🔄</span> Check for Updates
-          </button>
-        {/if}
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          {#if hasUpdate}
+            <button
+              type="button"
+              onclick={openDownloadPage}
+              class="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-xl font-medium transition-all shadow-lg hover:shadow-green-500/25 active:scale-95 flex items-center gap-2"
+            >
+              <span>🌐</span> Go to Download Page
+            </button>
+            <button
+              type="button"
+              onclick={checkForUpdates}
+              class="bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] px-4 py-2.5 rounded-xl font-medium transition-all border border-[var(--glass-border)] active:scale-95 flex items-center gap-2 text-sm"
+            >
+              Re-check
+            </button>
+          {:else}
+            <button
+              type="button"
+              onclick={checkForUpdates}
+              class="bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] px-6 py-2.5 rounded-xl font-medium transition-all border border-[var(--glass-border)] active:scale-95 flex items-center gap-2"
+            >
+              <span>🔄</span> Check for Updates
+            </button>
+            {#if checkError || lastStatus === "empty" || lastStatus === "error"}
+              <button
+                type="button"
+                onclick={openDownloadPage}
+                class="bg-[var(--text-main)]/10 hover:bg-[var(--text-main)]/20 text-[var(--text-main)] px-4 py-2.5 rounded-xl font-medium transition-all border border-[var(--glass-border)] active:scale-95 flex items-center gap-2 text-sm"
+              >
+                Open releases page
+              </button>
+            {/if}
+          {/if}
+        </div>
       {/if}
     </div>
 

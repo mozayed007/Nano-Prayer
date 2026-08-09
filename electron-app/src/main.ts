@@ -43,6 +43,7 @@ import {
   prayerDisplayName,
   queueOrDispatchAudio,
   resetAudioDispatch,
+  resolveUpdateStatus,
   suggestHijriOffset,
   upsertCompletedPrayer,
 } from "./prayer-logic";
@@ -68,8 +69,9 @@ type CityEntry = {
   timezone: string;
 };
 
-const GITHUB_RELEASES_URL =
-  "https://api.github.com/repos/mozayed007/Nano-Prayer/releases/latest";
+/** Full releases list (includes pre-releases). /releases/latest ignores prereleases. */
+const GITHUB_RELEASES_LIST_URL =
+  "https://api.github.com/repos/mozayed007/Nano-Prayer/releases";
 
 type UpdateCheckResult = {
   available: boolean;
@@ -78,6 +80,11 @@ type UpdateCheckResult = {
   releaseUrl: string;
   releaseNotes: string;
   publishedAt: string;
+  isPrerelease: boolean;
+  /** update | current | ahead | empty | error */
+  status: string;
+  message: string;
+  error: string | null;
 };
 
 let mainWindow: BrowserWindow | null = null;
@@ -1530,39 +1537,82 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
       return null;
     }
     case "desktop_check_update": {
+      const currentVersion = app.getVersion();
+      const empty = (status: string, message: string, error: string | null = null): UpdateCheckResult => ({
+        available: false,
+        currentVersion,
+        latestVersion: "",
+        releaseUrl: "https://github.com/mozayed007/Nano-Prayer/releases",
+        releaseNotes: "",
+        publishedAt: "",
+        isPrerelease: false,
+        status,
+        message,
+        error,
+      });
       try {
-        const response = await net.fetch(GITHUB_RELEASES_URL, {
-          headers: { Accept: "application/vnd.github+json", "User-Agent": "NanoPrayReminder-Electron" },
+        // Use /releases (not /latest) so pre-releases like v0.1.6 are visible.
+        const response = await net.fetch(GITHUB_RELEASES_LIST_URL, {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "User-Agent": "NanoPrayReminder-Electron",
+          },
         });
-        if (!response.ok) {
-          log.warn(`Update check failed: ${response.status} ${response.statusText}`);
-          return null;
+        if (response.status === 403) {
+          return empty("error", "GitHub API rate limited. Try again later.", "rate_limited");
         }
-        const data = (await response.json()) as {
+        if (response.status === 404) {
+          return empty("empty", "No releases found yet.");
+        }
+        if (!response.ok) {
+          return empty(
+            "error",
+            `GitHub API returned ${response.status} ${response.statusText}`,
+            "http_error",
+          );
+        }
+        const data = (await response.json()) as Array<{
           tag_name?: string;
           html_url?: string;
           body?: string;
           published_at?: string;
           draft?: boolean;
           prerelease?: boolean;
-        };
-        if (!data.tag_name || data.draft) {
-          return null;
+        }>;
+        const published = (Array.isArray(data) ? data : []).filter(
+          (r) => !r.draft && r.tag_name && String(r.tag_name).trim().length > 0,
+        );
+        if (published.length === 0) {
+          return empty("empty", "No public releases available yet.");
         }
-        const currentVersion = app.getVersion();
-        const latestVersion = data.tag_name.replace(/^v/i, "");
+        const latest = published[0];
+        const latestVersion = String(latest.tag_name).replace(/^v/i, "");
+        const isPrerelease = !!latest.prerelease;
+        const decided = resolveUpdateStatus(currentVersion, latestVersion, isPrerelease);
         const result: UpdateCheckResult = {
-          available: compareSemver(latestVersion, currentVersion) > 0,
+          available: decided.available,
           currentVersion,
           latestVersion,
-          releaseUrl: data.html_url ?? "",
-          releaseNotes: data.body ?? "",
-          publishedAt: data.published_at ?? "",
+          releaseUrl: latest.html_url ?? "https://github.com/mozayed007/Nano-Prayer/releases",
+          releaseNotes: latest.body ?? "",
+          publishedAt: latest.published_at ?? "",
+          isPrerelease,
+          status: decided.status,
+          message: decided.message,
+          error: null,
         };
         return result;
       } catch (err) {
         log.warn("Update check error:", err);
-        return null;
+        return empty(
+          "error",
+          err instanceof Error
+            ? err.message.includes("fetch") || err.message.includes("network")
+              ? "Could not reach GitHub. Check your network connection."
+              : err.message
+            : "Could not check for updates.",
+          "network",
+        );
       }
     }
     case "desktop_register_shortcut": {

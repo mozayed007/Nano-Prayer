@@ -226,6 +226,7 @@ pub fn run() {
             commands::get_next_prayer,
             commands::set_reminders_muted,
             commands::update_reminder_settings,
+            commands::desktop_check_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
