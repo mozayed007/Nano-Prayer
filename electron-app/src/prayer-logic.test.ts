@@ -6,9 +6,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   adaptiveSchedulerSleepSecs,
+  civilDateStrInZone,
   compareSemver,
   createAudioDispatchState,
   flushAudioQueue,
+  formatHmInZone,
   gregorianToHijri,
   hijriDateFromGregorian,
   isQuietHour,
@@ -145,6 +147,22 @@ describe("suggestHijriOffset", () => {
     const nextDay = new Date(2024, 0, 2);
     const observed = gregorianToHijri(nextDay);
     assert.equal(suggestHijriOffset(g, observed, gregorianToHijri), 1);
+  });
+});
+
+describe("DST / summer-time zone helpers", () => {
+  it("formats London winter vs summer wall clocks differently for same UTC", () => {
+    // 12:00 UTC on 15 Jan 2024 → 12:00 GMT; 15 Jul 2024 → 13:00 BST
+    const winter = new Date(Date.UTC(2024, 0, 15, 12, 0, 0));
+    const summer = new Date(Date.UTC(2024, 6, 15, 12, 0, 0));
+    assert.equal(formatHmInZone(winter, "Europe/London"), "12:00");
+    assert.equal(formatHmInZone(summer, "Europe/London"), "13:00");
+  });
+
+  it("civil date in Auckland can be ahead of UTC", () => {
+    const utc = new Date(Date.UTC(2024, 0, 1, 12, 0, 0));
+    // NZDT is UTC+13 → 2024-01-02 local
+    assert.equal(civilDateStrInZone(utc, "Pacific/Auckland"), "2024-01-02");
   });
 });
 

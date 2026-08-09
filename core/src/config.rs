@@ -257,6 +257,13 @@ impl AppConfig {
         self.calculation_method
     }
 
+    /// IANA timezone for the active location (DST / summer time rules apply).
+    pub fn effective_timezone(&self) -> Option<String> {
+        self.current_location()
+            .map(|loc| loc.timezone.clone())
+            .filter(|z| !z.trim().is_empty())
+    }
+
     pub fn set_current_location(&mut self, index: usize) {
         if index < self.locations.len() {
             self.current_location_index = index;

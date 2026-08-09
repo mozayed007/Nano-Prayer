@@ -3,7 +3,7 @@
 //! These helpers keep desktop commands, CLI output, and MCP tools anchored to the
 //! same Rust prayer engine instead of duplicating prayer logic per integration.
 
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, Local, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::config::{AppConfig, ReminderConfig};
@@ -231,9 +231,25 @@ pub fn hijri_date(offset_days: Option<i32>) -> AgentHijriDate {
 }
 
 /// Hijri for today using config effective offset (per-city moon alignment).
+/// Uses the **location civil date** (DST-aware) when a timezone is configured.
 pub fn hijri_date_for_config(config: &AppConfig, offset_override: Option<i32>) -> AgentHijriDate {
+    use crate::time_zone::{civil_date_at, parse_timezone};
     let offset = offset_override.unwrap_or_else(|| config.effective_hijri_offset());
-    hijri_date(Some(offset))
+    let tz = config
+        .effective_timezone()
+        .as_deref()
+        .and_then(parse_timezone);
+    let civil = civil_date_at(Utc::now(), tz);
+    let date = civil + chrono::Duration::days(offset as i64);
+    let hijri = HijriDate::from_gregorian(date);
+    AgentHijriDate {
+        year: hijri.year,
+        month: hijri.month,
+        day: hijri.day,
+        month_name: hijri.month_name_english().to_string(),
+        formatted: hijri.format(),
+        formatted_arabic: hijri.format_arabic(),
+    }
 }
 
 pub fn set_muted(muted: bool) -> Result<AgentMutation> {
@@ -294,6 +310,7 @@ fn calculator_from_config(config: &AppConfig) -> PrayerCalculator {
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
         .with_adjustments(config.prayer_adjustments)
+        .with_timezone(config.effective_timezone())
 }
 
 fn resolve_location(

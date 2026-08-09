@@ -28,9 +28,11 @@ import {
 import { defaultConfig } from "./defaults";
 import {
   adaptiveSchedulerSleepSecs,
+  civilDateStrInZone,
   compareSemver,
   createAudioDispatchState,
   flushAudioQueue,
+  formatHmInZone,
   gregorianToHijri,
   hijriDateFromGregorian,
   isQuietHour,
@@ -493,14 +495,19 @@ function computeStatistics(config: AppConfig) {
   };
 }
 
-function getLocation(config: AppConfig): { lat: number; lng: number; name: string | null; timezone: string | null } {
+function getLocation(config: AppConfig): {
+  lat: number;
+  lng: number;
+  name: string | null;
+  timezone: string | null;
+} {
   const loc = config.locations[config.current_location_index];
   if (loc) {
     return {
       lat: loc.coordinates.latitude,
       lng: loc.coordinates.longitude,
       name: loc.name,
-      timezone: loc.timezone,
+      timezone: loc.timezone ?? null,
     };
   }
   return { lat: 21.4225, lng: 39.8262, name: "Makkah", timezone: "Asia/Riyadh" };
@@ -555,10 +562,24 @@ function prayerName(prayer: any): string {
   }
 }
 
-function formatHM(date: Date): string {
-  const h = String(date.getHours()).padStart(2, "0");
-  const m = String(date.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+function effectiveTimezone(config: AppConfig): string | null {
+  const loc = config.locations[config.current_location_index];
+  if (loc?.timezone && String(loc.timezone).trim()) {
+    return String(loc.timezone).trim();
+  }
+  return null;
+}
+
+/**
+ * Build a Date whose Y/M/D are the civil date in `timeZone` (DST-aware).
+ * Adhan uses the local calendar components of this Date for the solar day.
+ */
+function dateForZoneCivilDay(instant: Date, timeZone: string | null): Date {
+  const civil = civilDateStrInZone(instant, timeZone);
+  const [y, m, d] = civil.split("-").map((n) => parseInt(n, 10));
+  // Noon UTC-ish local construction: adhan reads Y/M/D from the Date in *system* local.
+  // Using local noon reduces accidental day shifts near midnight for most desktop TZ setups.
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
 function buildPrayerTimesResponse(
@@ -568,14 +589,17 @@ function buildPrayerTimesResponse(
   longitude?: number,
 ): PrayerTimesResponse {
   const loc = latitude != null && longitude != null
-    ? { lat: latitude, lng: longitude, name: null }
-    : getLocation(config);
+    ? { lat: latitude, lng: longitude, name: null as string | null, timezone: null as string | null }
+    : { ...getLocation(config), timezone: effectiveTimezone(config) };
 
+  const tz = loc.timezone;
   const params = resolveMethod(effectiveCalculationMethod(config));
   params.madhab = config.asr_madhab === "Hanafi" ? Madhab.Hanafi : Madhab.Shafi;
 
   const coordinates = new Coordinates(loc.lat, loc.lng);
-  const times = new PrayerTimes(coordinates, date, params);
+  // Civil day in city zone (summer time / DST included)
+  const dayDate = dateForZoneCivilDay(date, tz);
+  const times = new PrayerTimes(coordinates, dayDate, params);
   const now = new Date();
 
   const adjustments = config.prayer_adjustments;
@@ -619,16 +643,17 @@ function buildPrayerTimesResponse(
   }
 
   const qiblaDirection = Qibla(coordinates);
+  const fmt = (d: Date) => formatHmInZone(d, tz);
 
   return {
-    date: localDateStr(date),
+    date: civilDateStrInZone(date, tz),
     location_name: loc.name,
-    fajr: formatHM(todayPrayers[0].time),
-    sunrise: formatHM(todayPrayers[1].time),
-    dhuhr: formatHM(todayPrayers[2].time),
-    asr: formatHM(todayPrayers[3].time),
-    maghrib: formatHM(todayPrayers[4].time),
-    isha: formatHM(todayPrayers[5].time),
+    fajr: fmt(todayPrayers[0].time),
+    sunrise: fmt(todayPrayers[1].time),
+    dhuhr: fmt(todayPrayers[2].time),
+    asr: fmt(todayPrayers[3].time),
+    maghrib: fmt(todayPrayers[4].time),
+    isha: fmt(todayPrayers[5].time),
     current_prayer: currentPrayer,
     next_prayer: nextPrayer,
     minutes_to_next: minutesToNext,
@@ -1315,7 +1340,14 @@ async function invokeCommand(command: string, args: Record<string, unknown>): Pr
         offsetRaw === undefined || offsetRaw === null
           ? effectiveHijriOffset(config)
           : Number(offsetRaw);
-      return hijriDateFromGregorian(new Date(), Number.isFinite(offset) ? offset : 0);
+      // Civil "today" in the city zone (DST/summer time), then moon offset.
+      const civil = civilDateStrInZone(new Date(), effectiveTimezone(config));
+      const [y, m, d] = civil.split("-").map((n) => parseInt(n, 10));
+      const civilDate = new Date(y, m - 1, d);
+      return hijriDateFromGregorian(
+        civilDate,
+        Number.isFinite(offset) ? offset : 0,
+      );
     }
     case "align_hijri_for_location": {
       const idx =

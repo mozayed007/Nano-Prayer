@@ -128,7 +128,8 @@ impl Scheduler {
             .with_method(config.effective_calculation_method())
             .with_madhab(config.asr_madhab)
             .with_high_latitude_rule(config.high_latitude_rule)
-            .with_adjustments(config.prayer_adjustments);
+            .with_adjustments(config.prayer_adjustments)
+            .with_timezone(config.effective_timezone());
 
         let times = calc
             .calculate_today(lat, lng, None)
@@ -158,10 +159,18 @@ impl Scheduler {
 
         let mut nearest_event_secs = times.seconds_to_next;
 
-        // Quiet hours: keep tray/countdown, suppress alerts + audio.
+        // Quiet hours in the *city* wall clock (DST/summer time aware).
+        let quiet_hour = {
+            use nano_pray_core::time_zone::{hour_in_zone, parse_timezone};
+            let tz = config
+                .effective_timezone()
+                .as_deref()
+                .and_then(parse_timezone);
+            hour_in_zone(chrono::Utc::now(), tz) as u8
+        };
         if config.advanced.quiet_hours_enabled
             && is_quiet_hour(
-                now.hour() as u8,
+                quiet_hour,
                 config.advanced.quiet_hours_start,
                 config.advanced.quiet_hours_end,
             )
@@ -217,8 +226,11 @@ impl Scheduler {
             return Ok(());
         }
 
-        // Second-precision delta (positive = prayer still in the future).
-        let diff_secs = info.time.signed_duration_since(now).num_seconds();
+        // Absolute countdown from UTC (DST-safe); do not use wall-clock Local diffs.
+        let diff_secs = info
+            .time_utc
+            .signed_duration_since(chrono::Utc::now())
+            .num_seconds();
         let diff = diff_secs / 60; // minutes for message text
 
         // 1. "Before" reminder — fires once per prayer per day
@@ -480,7 +492,11 @@ fn seconds_to_reminder_edge(
     if !reminder.enabled {
         return None;
     }
-    let diff_secs = info.time.signed_duration_since(now).num_seconds();
+    let _ = now;
+    let diff_secs = info
+        .time_utc
+        .signed_duration_since(chrono::Utc::now())
+        .num_seconds();
     let mut candidates: Vec<i64> = Vec::new();
     // On-time edge
     candidates.push(diff_secs);

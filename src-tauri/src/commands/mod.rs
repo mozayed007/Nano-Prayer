@@ -68,11 +68,18 @@ pub async fn get_prayer_times(
         (21.4225, 39.8262, Some("Makkah".to_string()))
     };
 
+    let tz = if latitude.is_some() && longitude.is_some() {
+        // Explicit coords: no city timezone unless current location matches.
+        config.effective_timezone()
+    } else {
+        config.effective_timezone()
+    };
     let calc = PrayerCalculator::new()
         .with_method(config.effective_calculation_method())
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
-        .with_adjustments(config.prayer_adjustments);
+        .with_adjustments(config.prayer_adjustments)
+        .with_timezone(tz);
 
     let times = calc
         .calculate_today(lat, lng, name)
@@ -84,27 +91,27 @@ pub async fn get_prayer_times(
     Ok(PrayerTimesResponse {
         fajr: times
             .get_time(Prayer::Fajr)
-            .map(|t| t.time.format("%H:%M").to_string())
+            .map(|t| calc.format_prayer_hm(t.time_utc))
             .unwrap_or_default(),
         sunrise: times
             .get_time(Prayer::Sunrise)
-            .map(|t| t.time.format("%H:%M").to_string())
+            .map(|t| calc.format_prayer_hm(t.time_utc))
             .unwrap_or_default(),
         dhuhr: times
             .get_time(Prayer::Dhuhr)
-            .map(|t| t.time.format("%H:%M").to_string())
+            .map(|t| calc.format_prayer_hm(t.time_utc))
             .unwrap_or_default(),
         asr: times
             .get_time(Prayer::Asr)
-            .map(|t| t.time.format("%H:%M").to_string())
+            .map(|t| calc.format_prayer_hm(t.time_utc))
             .unwrap_or_default(),
         maghrib: times
             .get_time(Prayer::Maghrib)
-            .map(|t| t.time.format("%H:%M").to_string())
+            .map(|t| calc.format_prayer_hm(t.time_utc))
             .unwrap_or_default(),
         isha: times
             .get_time(Prayer::Isha)
-            .map(|t| t.time.format("%H:%M").to_string())
+            .map(|t| calc.format_prayer_hm(t.time_utc))
             .unwrap_or_default(),
         current_prayer: times.current_prayer.map(|p| p.name().to_string()),
         next_prayer: times.next_prayer.map(|p| p.name().to_string()),
@@ -137,7 +144,8 @@ pub async fn get_monthly_prayer_times(
         .with_method(config.effective_calculation_method())
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
-        .with_adjustments(config.prayer_adjustments);
+        .with_adjustments(config.prayer_adjustments)
+        .with_timezone(config.effective_timezone());
 
     let mut responses = Vec::new();
     let qibla = QiblaDirection::calculate(lat, lng)
@@ -161,27 +169,27 @@ pub async fn get_monthly_prayer_times(
                 responses.push(PrayerTimesResponse {
                     fajr: times
                         .get_time(Prayer::Fajr)
-                        .map(|t| t.time.format("%H:%M").to_string())
+                        .map(|t| calc.format_prayer_hm(t.time_utc))
                         .unwrap_or_default(),
                     sunrise: times
                         .get_time(Prayer::Sunrise)
-                        .map(|t| t.time.format("%H:%M").to_string())
+                        .map(|t| calc.format_prayer_hm(t.time_utc))
                         .unwrap_or_default(),
                     dhuhr: times
                         .get_time(Prayer::Dhuhr)
-                        .map(|t| t.time.format("%H:%M").to_string())
+                        .map(|t| calc.format_prayer_hm(t.time_utc))
                         .unwrap_or_default(),
                     asr: times
                         .get_time(Prayer::Asr)
-                        .map(|t| t.time.format("%H:%M").to_string())
+                        .map(|t| calc.format_prayer_hm(t.time_utc))
                         .unwrap_or_default(),
                     maghrib: times
                         .get_time(Prayer::Maghrib)
-                        .map(|t| t.time.format("%H:%M").to_string())
+                        .map(|t| calc.format_prayer_hm(t.time_utc))
                         .unwrap_or_default(),
                     isha: times
                         .get_time(Prayer::Isha)
-                        .map(|t| t.time.format("%H:%M").to_string())
+                        .map(|t| calc.format_prayer_hm(t.time_utc))
                         .unwrap_or_default(),
                     current_prayer: None,
                     next_prayer: None,
@@ -452,7 +460,8 @@ fn build_day_statistics(
         .with_method(config.effective_calculation_method())
         .with_madhab(config.asr_madhab)
         .with_high_latitude_rule(config.high_latitude_rule)
-        .with_adjustments(config.prayer_adjustments);
+        .with_adjustments(config.prayer_adjustments)
+        .with_timezone(config.effective_timezone());
 
     let mut stats = BTreeMap::new();
     let mut date = start;
@@ -775,19 +784,16 @@ pub fn get_hijri_date(
     state: State<'_, AppState>,
     offset_days: Option<i32>,
 ) -> std::result::Result<HijriResponse, String> {
-    use chrono::{Duration, Local};
     let config = state.config.lock().map_err(|e| e.to_string())?;
-    let offset = offset_days.unwrap_or_else(|| config.effective_hijri_offset());
-    let today = Local::now().date_naive();
-    let adjusted = today + Duration::days(offset as i64);
-    let hijri = HijriDate::from_gregorian(adjusted);
+    // DST-aware civil day for the city + moon-sighting offset
+    let agent = nano_pray_core::agent::hijri_date_for_config(&config, offset_days);
     Ok(HijriResponse {
-        year: hijri.year,
-        month: hijri.month,
-        day: hijri.day,
-        month_name: hijri.month_name_english().to_string(),
-        formatted: hijri.format(),
-        formatted_arabic: hijri.format_arabic(),
+        year: agent.year,
+        month: agent.month,
+        day: agent.day,
+        month_name: agent.month_name,
+        formatted: agent.formatted,
+        formatted_arabic: agent.formatted_arabic,
     })
 }
 
@@ -812,8 +818,9 @@ pub fn align_hijri_for_location(
     observed_day: u8,
     auto_align: Option<bool>,
 ) -> std::result::Result<HijriAlignResult, String> {
-    use chrono::Local;
     use nano_pray_core::suggest_offset_for_observed;
+    use nano_pray_core::time_zone::{civil_date_at, parse_timezone};
+    use chrono::Utc;
 
     let mut config = state.config.lock().map_err(|e| e.to_string())?;
     let idx = location_index.unwrap_or(config.current_location_index);
@@ -821,7 +828,9 @@ pub fn align_hijri_for_location(
         return Err(format!("Invalid location index: {idx}"));
     }
 
-    let today = Local::now().date_naive();
+    // Align against the city's civil date (summer time / DST included).
+    let tz = parse_timezone(&config.locations[idx].timezone);
+    let today = civil_date_at(Utc::now(), tz);
     let observed = HijriDate::new(observed_year, observed_month, observed_day);
     let calculated = HijriDate::from_gregorian(today);
     let offset = suggest_offset_for_observed(today, observed).ok_or_else(|| {

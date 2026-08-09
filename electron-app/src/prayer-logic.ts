@@ -53,6 +53,55 @@ export function localDateStr(d: Date): string {
 }
 
 /**
+ * Civil YYYY-MM-DD in an IANA zone (DST / summer time aware via Intl).
+ * Falls back to system local when zone is missing/invalid.
+ */
+export function civilDateStrInZone(d: Date, timeZone?: string | null): string {
+  if (!timeZone || !String(timeZone).trim()) {
+    return localDateStr(d);
+  }
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: String(timeZone).trim(),
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === "year")?.value;
+    const m = parts.find((p) => p.type === "month")?.value;
+    const day = parts.find((p) => p.type === "day")?.value;
+    if (y && m && day) return `${y}-${m}-${day}`;
+  } catch {
+    // invalid zone
+  }
+  return localDateStr(d);
+}
+
+/** Format instant as HH:MM in IANA zone (DST-aware). */
+export function formatHmInZone(d: Date, timeZone?: string | null): string {
+  if (!timeZone || !String(timeZone).trim()) {
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
+  }
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: String(timeZone).trim(),
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(d);
+    const h = parts.find((p) => p.type === "hour")?.value ?? "00";
+    const m = parts.find((p) => p.type === "minute")?.value ?? "00";
+    return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
+  } catch {
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
+  }
+}
+
+/**
  * Quiet hours from whole-hour config (matches core `is_quiet_hour`).
  * Range is [start, end); supports midnight wrap. Equal start/end = never quiet.
  */

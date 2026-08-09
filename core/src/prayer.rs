@@ -1,8 +1,11 @@
 //! Prayer time calculation module using the salah crate
 
 use chrono::{DateTime, Local, NaiveDate, Utc};
+use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use crate::time_zone::{civil_date_at, format_hm, parse_timezone, wall_local_from_utc};
 
 // Use prelude to get all necessary types including HighLatitudeRule if available
 #[allow(unused_imports)]
@@ -200,6 +203,9 @@ pub struct PrayerCalculator {
     pub madhab: AsrMadhab,
     pub high_latitude_rule: HighLatitudeRule,
     pub adjustments: PrayerAdjustments,
+    /// Optional IANA timezone for DST-aware civil day + display (e.g. Europe/London).
+    #[serde(default)]
+    pub timezone: Option<String>,
 }
 
 impl PrayerCalculator {
@@ -222,6 +228,14 @@ impl PrayerCalculator {
         self.adjustments = a;
         self
     }
+    pub fn with_timezone(mut self, tz: impl Into<Option<String>>) -> Self {
+        self.timezone = tz.into();
+        self
+    }
+
+    fn resolved_tz(&self) -> Option<Tz> {
+        self.timezone.as_deref().and_then(parse_timezone)
+    }
 
     pub fn calculate(
         &self,
@@ -239,26 +253,16 @@ impl PrayerCalculator {
             .with_configuration(config)
             .calculate()
             .map_err(|e| Error::PrayerCalculation(e.to_string()))?;
-        // Compare in UTC for accuracy (avoids DST edge glitches on Local).
+        // Compare in UTC for absolute accuracy; display uses location TZ (DST-aware).
         let now_utc = Utc::now();
-        let now_local = now_utc.with_timezone(&Local);
+        let tz = self.resolved_tz();
         let prayers = vec![
-            self.build_info(Prayer::Fajr, st.time(SalahPrayer::Fajr), now_utc, now_local),
-            self.build_info(
-                Prayer::Sunrise,
-                st.time(SalahPrayer::Sunrise),
-                now_utc,
-                now_local,
-            ),
-            self.build_info(Prayer::Dhuhr, st.time(SalahPrayer::Dhuhr), now_utc, now_local),
-            self.build_info(Prayer::Asr, st.time(SalahPrayer::Asr), now_utc, now_local),
-            self.build_info(
-                Prayer::Maghrib,
-                st.time(SalahPrayer::Maghrib),
-                now_utc,
-                now_local,
-            ),
-            self.build_info(Prayer::Isha, st.time(SalahPrayer::Isha), now_utc, now_local),
+            self.build_info(Prayer::Fajr, st.time(SalahPrayer::Fajr), now_utc, tz),
+            self.build_info(Prayer::Sunrise, st.time(SalahPrayer::Sunrise), now_utc, tz),
+            self.build_info(Prayer::Dhuhr, st.time(SalahPrayer::Dhuhr), now_utc, tz),
+            self.build_info(Prayer::Asr, st.time(SalahPrayer::Asr), now_utc, tz),
+            self.build_info(Prayer::Maghrib, st.time(SalahPrayer::Maghrib), now_utc, tz),
+            self.build_info(Prayer::Isha, st.time(SalahPrayer::Isha), now_utc, tz),
         ];
         let next_idx = prayers.iter().position(|p| !p.has_passed);
         let mut next_prayer = next_idx.map(|i| prayers[i].prayer);
@@ -313,14 +317,14 @@ impl PrayerCalculator {
         prayer: Prayer,
         utc: DateTime<Utc>,
         now_utc: DateTime<Utc>,
-        now_local: DateTime<Local>,
+        tz: Option<Tz>,
     ) -> PrayerInfo {
         let offset = self.adjustment_for(prayer);
         let adjusted_utc = utc + chrono::Duration::minutes(offset as i64);
-        let time = adjusted_utc.with_timezone(&Local);
+        // Wall clock in location TZ (summer time applied); countdowns use time_utc only.
+        let time = wall_local_from_utc(adjusted_utc, tz);
         let delta_secs = adjusted_utc.signed_duration_since(now_utc).num_seconds();
         let passed = delta_secs <= 0;
-        let _ = now_local; // display still uses Local conversion of adjusted_utc
         PrayerInfo {
             prayer,
             time,
@@ -346,8 +350,16 @@ impl PrayerCalculator {
         }
     }
 
+    /// Today’s times using the **location civil date** (DST-aware), not system Local.
     pub fn calculate_today(&self, lat: f64, lng: f64, name: Option<String>) -> Result<PrayerTimes> {
-        self.calculate(Local::now().date_naive(), lat, lng, name)
+        let tz = self.resolved_tz();
+        let today = civil_date_at(Utc::now(), tz);
+        self.calculate(today, lat, lng, name)
+    }
+
+    /// Format a prayer UTC instant as HH:MM in this calculator’s timezone.
+    pub fn format_prayer_hm(&self, utc: DateTime<Utc>) -> String {
+        format_hm(utc, self.resolved_tz())
     }
 }
 

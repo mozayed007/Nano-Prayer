@@ -13,6 +13,7 @@ pub mod prayer;
 pub mod qibla;
 pub mod reminder;
 pub mod statistics;
+pub mod time_zone;
 
 // Re-exports for convenience
 pub use config::AppConfig;
@@ -25,6 +26,7 @@ pub use reminder::{
     adaptive_scheduler_sleep_secs, is_quiet_hour, is_quiet_hours_range, Reminder, ReminderScheduler,
 };
 pub use statistics::{PrayerLog, Statistics};
+pub use time_zone::{civil_date_at, civil_date_now, format_hm, parse_timezone};
 
 /// Prelude for common imports
 pub mod prelude {
