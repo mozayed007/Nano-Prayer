@@ -160,9 +160,8 @@
   <title>Prayer Alert</title>
 </svelte:head>
 
-<!-- Borderless transparent canvas -->
 <main
-  class="w-full h-full bg-transparent p-3 flex items-center justify-center overflow-hidden relative"
+  class="w-full h-full bg-slate-950 p-3 flex items-center justify-center overflow-hidden relative"
 >
   <button
     class="absolute top-2 right-2 z-30 p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white"
@@ -175,7 +174,7 @@
     <div
       class="relative w-full h-full {getBackgroundColor(
         activeAlert?.prayer,
-      )} border border-white/20 rounded-2xl shadow-2xl p-5 flex flex-col justify-between overflow-hidden backdrop-blur-3xl text-white"
+      )} border border-white/20 rounded-2xl shadow-2xl p-5 flex flex-col justify-between overflow-hidden text-white"
       in:fly={{ y: 20, duration: 600, easing: backOut }}
       out:fade={{ duration: 300 }}
     >
@@ -259,9 +258,9 @@
     </div>
   {:else}
     <div
-      class="w-full h-full bg-slate-900/40 border border-white/10 rounded-2xl flex items-center justify-center text-white/40 backdrop-blur-md"
+      class="w-full h-full bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-white/40"
     >
-      <div class="text-center font-medium animate-pulse">
+      <div class="text-center font-medium">
         Waiting for alert...
       </div>
     </div>

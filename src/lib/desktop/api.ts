@@ -92,15 +92,18 @@ export function getCurrentWindow(): DesktopWindow {
 
   if (isTauriRuntime()) {
     return {
-      hide: async () => (await import("@tauri-apps/api/window")).getCurrentWindow().hide(),
-      show: async () => (await import("@tauri-apps/api/window")).getCurrentWindow().show(),
+      hide: async () => {
+        await invoke("hide_main_window");
+      },
+      show: async () => {
+        await invoke("show_main_window");
+      },
       setFocus: async () =>
         (await import("@tauri-apps/api/window")).getCurrentWindow().setFocus(),
       isVisible: async () =>
         (await import("@tauri-apps/api/window")).getCurrentWindow().isVisible(),
       onVisibilityChanged: async (cb: (event: VisibilityEvent) => void): Promise<UnlistenFn> => {
-        const win = (await import("@tauri-apps/api/window")).getCurrentWindow();
-        return win.listen("tauri://visibility-change", (event: { payload: VisibilityEvent }) => {
+        return listen<VisibilityEvent>("np-window-visibility", (event) => {
           cb(event.payload);
         });
       },

@@ -136,7 +136,7 @@
   in:fade={{ duration: 400 }}
 >
   <div
-    class="max-w-2xl w-full flex flex-col items-center text-center backdrop-blur-3xl bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[2rem] p-8 md:p-12 shadow-[0_8px_32px_var(--glass-shadow)] relative overflow-hidden"
+    class="max-w-2xl w-full flex flex-col items-center text-center np-surface bg-[var(--surface-bg)] border border-[var(--glass-border)] rounded-[2rem] p-8 md:p-12 shadow-[0_8px_32px_var(--glass-shadow)] relative overflow-hidden"
   >
     <!-- Decorative glow -->
     <div

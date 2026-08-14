@@ -1142,6 +1142,7 @@ function createMainWindow(): void {
 
   mainWindow.on("show", () => {
     isMainWindowVisible = true;
+    applyRendererGpuIdle(mainWindow, false);
     const config = getConfig();
     const now = new Date();
     const times = buildPrayerTimesResponse(now, config);
@@ -1150,7 +1151,21 @@ function createMainWindow(): void {
 
   mainWindow.on("hide", () => {
     isMainWindowVisible = false;
+    applyRendererGpuIdle(mainWindow, true);
   });
+}
+
+function applyRendererGpuIdle(
+  win: BrowserWindow | null,
+  idle: boolean,
+): void {
+  if (!win || win.isDestroyed()) return;
+  try {
+    win.webContents.setBackgroundThrottling(true);
+    win.webContents.setFrameRate(idle ? 1 : 60);
+  } catch (err) {
+    log.warn("Failed to apply renderer GPU idle:", err);
+  }
 }
 
 function deliverAudioEvent(event: string, payload?: unknown): void {

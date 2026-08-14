@@ -56,7 +56,8 @@ export const defaultConfig: AppConfig = {
     accent_color: "#2563eb",
     clock_format: "hour12",
     show_arabic: true,
-    animations_enabled: true,
+    animations_enabled: false,
+    visual_mode: "performance",
     font_scale: 1,
   },
   advanced: {

@@ -70,6 +70,7 @@ export interface AppConfig {
     clock_format: "hour12" | "hour24";
     show_arabic: boolean;
     animations_enabled: boolean;
+    visual_mode?: "performance" | "glass";
     font_scale: number;
   };
   advanced: {

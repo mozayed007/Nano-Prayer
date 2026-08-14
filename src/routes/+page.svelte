@@ -376,7 +376,7 @@
       >
         <!-- Countdown Card -->
         <div
-          class="countdown-card backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,3vmin,1.25rem)] rounded-[clamp(1rem,4vmin,2rem)] flex flex-col items-center justify-center relative overflow-hidden flex-1 min-h-0 shadow-[0_8px_32px_var(--glass-shadow)] group"
+          class="countdown-card np-surface bg-[var(--surface-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,3vmin,1.25rem)] rounded-[clamp(1rem,4vmin,2rem)] flex flex-col items-center justify-center relative overflow-hidden flex-1 min-h-0 shadow-[0_8px_32px_var(--glass-shadow)] group"
         >
           <div
             class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] md:w-[120%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_70%)] opacity-50 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none clamp-size"
@@ -386,7 +386,7 @@
             class="relative z-10 text-center flex flex-col items-center w-full"
           >
             <div
-              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-[clamp(0.75rem,4vmin,1.5rem)] py-[clamp(0.25rem,1.5vmin,0.5rem)] rounded-[clamp(1rem,4vmin,2rem)] backdrop-blur-md mb-[clamp(0.25rem,1.5vmin,0.5rem)] shadow-inner"
+              class="bg-[var(--glass-bg)] border border-[var(--glass-border)] px-[clamp(0.75rem,4vmin,1.5rem)] py-[clamp(0.25rem,1.5vmin,0.5rem)] rounded-[clamp(1rem,4vmin,2rem)] mb-[clamp(0.25rem,1.5vmin,0.5rem)] shadow-inner"
             >
               <span
                 class="text-[clamp(0.75rem,3vmin,1.125rem)] font-mono font-medium tracking-widest text-[var(--text-main)]/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
@@ -481,11 +481,11 @@
               </div>
 
               <div
-                class="mt-[clamp(0.25rem,1.5vh,0.5rem)] flex items-center justify-center gap-[clamp(0.25rem,1vh,0.5rem)] bg-[var(--glass-bg)] px-[clamp(0.5rem,3vh,0.75rem)] py-[clamp(0.25rem,1.2vh,0.5rem)] rounded-[clamp(0.5rem,2vh,0.75rem)] border border-[var(--glass-border)] backdrop-blur-md w-full max-w-[14rem] shadow-inner flex-shrink-0"
+                class="mt-[clamp(0.25rem,1.5vh,0.5rem)] flex items-center justify-center gap-[clamp(0.25rem,1vh,0.5rem)] bg-[var(--glass-bg)] px-[clamp(0.5rem,3vh,0.75rem)] py-[clamp(0.25rem,1.2vh,0.5rem)] rounded-[clamp(0.5rem,2vh,0.75rem)] border border-[var(--glass-border)] w-full max-w-[14rem] shadow-inner flex-shrink-0"
               >
                 <div
                   class="w-[clamp(0.4rem,1.5vh,0.6rem)] h-[clamp(0.4rem,1.5vh,0.6rem)] rounded-full {prayerTimes.current_prayer
-                    ? 'bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]'
+                    ? 'bg-emerald-400'
                     : 'bg-[var(--text-main)]/30'}"
                 ></div>
                 <p
@@ -504,7 +504,7 @@
 
       <!-- Right Column: Prayer List -->
       <div
-        class="daily-card backdrop-blur-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,2vh,1rem)] rounded-[clamp(1rem,4vh,2rem)] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-1 min-h-[40vh]"
+        class="daily-card np-surface bg-[var(--surface-bg)] border border-[var(--glass-border)] p-[clamp(0.5rem,2vh,1rem)] rounded-[clamp(1rem,4vh,2rem)] flex flex-col lg:col-span-6 xl:col-span-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-1 min-h-[40vh]"
       >
         <div
           class="absolute right-0 top-0 w-[120%] lg:w-[100%] aspect-square bg-[radial-gradient(circle,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none -translate-y-1/2"

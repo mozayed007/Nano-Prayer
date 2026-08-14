@@ -114,11 +114,8 @@
     class="max-w-6xl mx-auto w-full flex-1 flex flex-col gap-6 overflow-y-auto pr-2"
   >
     <div
-      class="backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden gap-4 shadow-[0_8px_32px_var(--glass-shadow)] flex-shrink-0"
+      class="np-surface bg-[var(--surface-bg)] border border-[var(--glass-border)] p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden gap-4 shadow-[0_8px_32px_var(--glass-shadow)] flex-shrink-0"
     >
-      <div
-        class="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 blur-3xl rounded-full pointer-events-none"
-      ></div>
 
       <div class="relative z-10">
         <h2
@@ -155,7 +152,7 @@
           {@const period = stats[key]}
           <button
             type="button"
-            class="text-left backdrop-blur-2xl bg-[var(--glass-bg)] border rounded-3xl p-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] transition-all {selectedPeriod ===
+            class="text-left np-surface bg-[var(--surface-bg)] border rounded-3xl p-5 relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] transition-colors {selectedPeriod ===
             key
               ? 'border-blue-500/50 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.3),0_18px_40px_rgba(37,99,235,0.15)]'
               : 'border-[var(--glass-border)] hover:bg-[var(--text-main)]/6'}"
@@ -217,7 +214,7 @@
         {@const active = getSelectedPeriod()!}
 
         <div
-          class="backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-6 rounded-2xl shadow-[0_8px_32px_var(--glass-shadow)]"
+          class="np-surface bg-[var(--surface-bg)] border border-[var(--glass-border)] p-6 rounded-2xl shadow-[0_8px_32px_var(--glass-shadow)]"
         >
           <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
             <div>
@@ -309,12 +306,11 @@
 
 <style>
   .stats-mini-card {
-    backdrop-filter: blur(var(--glass-blur));
-    background: var(--glass-bg);
+    background: var(--surface-bg);
     border: 1px solid var(--glass-border);
     border-radius: 1.25rem;
     padding: 1rem 1.1rem;
-    box-shadow: 0 8px 32px var(--glass-shadow);
+    box-shadow: 0 8px 16px var(--glass-shadow);
   }
 
   .stats-mini-label {

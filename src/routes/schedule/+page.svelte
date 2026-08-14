@@ -117,7 +117,7 @@
   >
     <!-- Header -->
     <div
-      class="backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] p-4 md:p-5 rounded-2xl flex justify-between items-center relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-shrink-0"
+      class="np-surface bg-[var(--surface-bg)] border border-[var(--glass-border)] p-4 md:p-5 rounded-2xl flex justify-between items-center relative overflow-hidden shadow-[0_8px_32px_var(--glass-shadow)] flex-shrink-0"
     >
       <div
         class="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-transparent pointer-events-none"
@@ -250,7 +250,7 @@
       </div>
     {:else if days.length > 0}
       <div
-        class="backdrop-blur-3xl bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl overflow-hidden shadow-[0_20px_60px_var(--glass-shadow)] relative flex-1 flex flex-col min-h-0"
+        class="np-surface bg-[var(--surface-bg)] border border-[var(--glass-border)] rounded-2xl overflow-hidden shadow-[0_20px_60px_var(--glass-shadow)] relative flex-1 flex flex-col min-h-0"
       >
         <div
           class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.05)_0%,transparent_50%)] pointer-events-none"
@@ -262,7 +262,7 @@
           <table class="w-full text-left border-collapse">
             <thead>
               <tr
-                class="bg-[var(--text-main)]/10 text-[var(--text-muted)] text-[10px] md:text-xs font-bold uppercase tracking-widest backdrop-blur-xl sticky top-0 shadow-sm z-20"
+                class="bg-[var(--surface-bg)] text-[var(--text-muted)] text-[10px] md:text-xs font-bold uppercase tracking-widest sticky top-0 shadow-sm z-20"
               >
                 <th
                   class="p-4 font-bold text-center w-[10%] min-w-[3rem] border-b border-[var(--glass-border)] text-sm"

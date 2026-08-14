@@ -143,12 +143,8 @@
     out:fade={{ duration: 300 }}
   >
     <div
-      class="glass-card bg-[var(--glass-bg)] border border-[var(--glass-border)] shadow-[0_8px_32px_var(--glass-shadow)] p-5 rounded-2xl flex flex-col gap-4 backdrop-blur-xl relative overflow-hidden text-[var(--text-main)]"
+      class="glass-card bg-[var(--surface-bg)] border border-[var(--glass-border)] shadow-[0_8px_32px_var(--glass-shadow)] p-5 rounded-2xl flex flex-col gap-4 relative overflow-hidden text-[var(--text-main)]"
     >
-      <!-- Glow effect based on alert type -->
-      <div
-        class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500 blur-[60px] opacity-20 pointer-events-none"
-      ></div>
 
       <div class="flex items-start gap-4 relative z-10">
         <div

@@ -96,12 +96,26 @@ npx electron --inspect=9229 .
 
 ### Metrics that define “good enough”
 
-| Metric | Idle (tray) target | Near prayer (±2 min) |
-|--------|--------------------|----------------------|
-| CPU (package) | mostly &lt; 1–2% average | short spikes OK for audio |
-| Scheduler wake | multi-minute when far | ~5s adaptive |
-| Main window timers | paused when hidden | active when visible |
-| Memory growth | flat over 4h soak | no unbounded growth |
+| Metric | Idle (tray) target | Window open | Near prayer (±2 min) |
+|--------|--------------------|-------------|----------------------|
+| CPU (package) | mostly &lt; 1–2% average | mostly &lt; 3% after first paint | short spikes OK for audio |
+| GPU (WebView2 / DWM) | near 0% | near 0% on Performance visual mode | short spikes OK for alert show |
+| Scheduler wake | multi-minute when far | same | ~5s adaptive |
+| Main window timers | paused when hidden | 60s clock / IPC only | same |
+| Infinite CSS / rAF | none | none except Qibla while heading moves | none |
+| Memory growth | flat over 4h soak | flat | no unbounded growth |
+
+**Window-open GPU check (required before claiming FPS wins):**
+
+1. Settings > Appearance = Performance (default).
+2. Open the main window on the dashboard. Leave it in the foreground 30s.
+3. Task Manager > Processes: `NanoPrayReminder` + `WebView2` GPU engine. Desktop / a fullscreen game should not hitch on a low-end iGPU.
+4. Hide to tray (X with minimize-to-tray). GPU / `msedgewebview2` should drop. `document.documentElement.dataset.idle` must be `true`. A fullscreen game should recover without quitting NanoPrayer.
+5. Record numbers. Do not write a GPU-reduction percentage without this capture.
+
+Tray hide on Windows also calls WebView2 `SetIsVisible(false)` so the compositor stops. Quitting the process should no longer be required for games to get the GPU back.
+
+`Not run` in this workspace until a low-end box or WPR trace is attached.
 
 ---
 

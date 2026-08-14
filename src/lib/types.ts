@@ -48,12 +48,15 @@ export interface NotificationSettings {
   play_sound: boolean;
 }
 
+export type VisualMode = "performance" | "glass";
+
 export interface AppearanceSettings {
   theme: "light" | "dark" | "system";
   accent_color: string;
   clock_format: "hour12" | "hour24";
   show_arabic: boolean;
   animations_enabled: boolean;
+  visual_mode?: VisualMode;
   font_scale: number;
 }
 

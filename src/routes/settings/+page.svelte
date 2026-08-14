@@ -2,8 +2,8 @@
   import { onDestroy, onMount } from "svelte";
   import { invoke, openDialog, setAutostart } from "$lib/desktop/api";
   import { fade } from "svelte/transition";
-  import { clockFormat, theme } from "$lib/stores";
-  import type { AppConfig, SavedLocation } from "$lib/types";
+  import { clockFormat, theme, visualMode } from "$lib/stores";
+  import type { AppConfig, SavedLocation, VisualMode } from "$lib/types";
 
   let config = $state<AppConfig | null>(null);
   let activeTab = $state("location");
@@ -83,6 +83,11 @@
             config.reminders[prayer] = createDefaultReminder();
           }
         }
+        if (!config.appearance.visual_mode) {
+          config.appearance.visual_mode = "performance";
+        }
+        config.appearance.animations_enabled =
+          config.appearance.visual_mode === "glass";
         for (const settings of Object.values(config.reminders)) {
           if (settings.before_enabled === undefined) {
             settings.before_enabled = true;
@@ -128,6 +133,11 @@
       // Sync stores
       $clockFormat = config.appearance.clock_format;
       $theme = config.appearance.theme;
+      const mode: VisualMode =
+        config.appearance.visual_mode === "glass" ? "glass" : "performance";
+      config.appearance.visual_mode = mode;
+      config.appearance.animations_enabled = mode === "glass";
+      visualMode.set(mode);
       saveStatus = "Saved successfully!";
       setTimeout(() => (saveStatus = ""), 3000);
     } catch (e) {
@@ -431,7 +441,7 @@
       <div class="flex items-center gap-3 sm:gap-4 z-10">
         <a
           href="/"
-          class="text-[var(--text-muted)] hover:text-[var(--text-main)] transition flex items-center gap-2 bg-[var(--glass-bg)] px-4 py-2 rounded-xl backdrop-blur-md border border-[var(--glass-border)] hover:bg-[var(--text-main)]/10"
+          class="text-[var(--text-muted)] hover:text-[var(--text-main)] transition flex items-center gap-2 bg-[var(--surface-bg)] px-4 py-2 rounded-xl border border-[var(--glass-border)] hover:bg-[var(--text-main)]/10"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -511,7 +521,7 @@
 
         <!-- Sidebar Tabs -->
         <div
-          class="settings-tabs md:w-60 lg:w-64 bg-black/10 p-2 sm:p-3 md:p-4 flex md:flex-col gap-1 md:gap-2 border-b md:border-b-0 md:border-r border-white/10 relative z-10 backdrop-blur-md overflow-x-auto md:overflow-x-visible flex-shrink-0"
+          class="settings-tabs md:w-60 lg:w-64 bg-black/10 p-2 sm:p-3 md:p-4 flex md:flex-col gap-1 md:gap-2 border-b md:border-b-0 md:border-r border-white/10 relative z-10 overflow-x-auto md:overflow-x-visible flex-shrink-0"
         >
           {#each tabs as tab}
             <button
@@ -1106,6 +1116,56 @@
                         class="capitalize font-medium text-[var(--text-main)]"
                         >{theme}</span
                       >
+                    </label>
+                  {/each}
+                </div>
+              </div>
+
+              <div>
+                <h2 class="text-xl font-bold mb-4">Visual mode</h2>
+                <p class="text-sm text-[var(--text-muted)] mb-3 leading-relaxed">
+                  Performance is the default. It skips backdrop blur and looping
+                  animations so low-end GPUs keep desktop FPS. Glass is the old
+                  look, opt-in only.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  {#each [
+                    {
+                      id: "performance" as VisualMode,
+                      label: "Performance",
+                      hint: "Solid surfaces, no compositor tax",
+                    },
+                    {
+                      id: "glass" as VisualMode,
+                      label: "Glass",
+                      hint: "Blurred cards, heavier GPU",
+                    },
+                  ] as option}
+                    <label
+                      class="flex items-center gap-3 p-4 bg-[var(--glass-bg)] rounded-xl border border-[var(--glass-border)] cursor-pointer hover:bg-[var(--text-main)]/5 transition flex-1 {(config
+                        .appearance.visual_mode || "performance") === option.id
+                        ? 'border-blue-500/50 bg-blue-500/5'
+                        : ''}"
+                    >
+                      <div class="relative flex items-center">
+                        <input
+                          type="radio"
+                          bind:group={config.appearance.visual_mode}
+                          value={option.id}
+                          class="peer appearance-none w-5 h-5 border-2 border-[var(--text-muted)]/30 rounded-full checked:border-blue-500 checked:bg-blue-500 transition-colors"
+                        />
+                        <div
+                          class="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white transform scale-0 peer-checked:scale-100 transition-transform"
+                        ></div>
+                      </div>
+                      <span class="flex flex-col">
+                        <span class="font-medium text-[var(--text-main)]"
+                          >{option.label}</span
+                        >
+                        <span class="text-xs text-[var(--text-muted)]"
+                          >{option.hint}</span
+                        >
+                      </span>
                     </label>
                   {/each}
                 </div>

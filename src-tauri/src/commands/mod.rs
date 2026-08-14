@@ -744,6 +744,22 @@ pub fn search_cities(
 }
 
 #[tauri::command]
+pub fn hide_main_window(app: tauri::AppHandle) -> std::result::Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    crate::gpu_idle::hide_main_for_tray(&window).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn show_main_window(app: tauri::AppHandle) -> std::result::Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    crate::gpu_idle::show_main_from_tray(&window).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn get_config(state: State<'_, AppState>) -> std::result::Result<AppConfig, String> {
     state
         .config

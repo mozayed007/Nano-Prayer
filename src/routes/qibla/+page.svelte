@@ -32,31 +32,56 @@
   let animationFrame: number | null = null;
   let isAnimating = $state(false);
 
-  function lerp(start: number, end: number, factor: number) {
-    // Handle shortest path for rotation
+  function shortestDelta(start: number, end: number) {
     let difference = end - start;
     while (difference < -180) difference += 360;
     while (difference > 180) difference -= 360;
-    return start + difference * factor;
+    return difference;
+  }
+
+  function lerp(start: number, end: number, factor: number) {
+    return start + shortestDelta(start, end) * factor;
+  }
+
+  function stopAnimation() {
+    if (animationFrame !== null) {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    }
+    isAnimating = false;
   }
 
   function animate() {
     currentCompassRotation = lerp(currentCompassRotation, compassRotation, 0.1);
     currentQiblaRotation = lerp(currentQiblaRotation, qiblaRotation, 0.1);
 
-    // Only continue animation if page is visible
-    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+    const pageVisible =
+      typeof document !== "undefined" && document.visibilityState === "visible";
+    const settled =
+      Math.abs(shortestDelta(currentCompassRotation, compassRotation)) < 0.15 &&
+      Math.abs(shortestDelta(currentQiblaRotation, qiblaRotation)) < 0.15;
+
+    if (pageVisible && !settled) {
       animationFrame = requestAnimationFrame(animate);
     } else {
-      animationFrame = null;
-      isAnimating = false;
+      stopAnimation();
     }
   }
 
+  function startAnimation() {
+    if (isAnimating || !qiblaData) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+      return;
+    }
+    isAnimating = true;
+    animate();
+  }
+
   function handleVisibilityChange() {
-    if (document.visibilityState === "visible" && !isAnimating && qiblaData) {
-      isAnimating = true;
-      animate();
+    if (document.visibilityState === "visible") {
+      startAnimation();
+    } else {
+      stopAnimation();
     }
   }
 
@@ -102,8 +127,7 @@
       }
 
       loading = false;
-      isAnimating = true;
-      animate();
+      startAnimation();
     } catch (e) {
       console.error(e);
       error =
@@ -123,6 +147,7 @@
         deviceHeading = 360 - event.alpha;
       }
     }
+    startAnimation();
   }
 
   onMount(() => {
@@ -139,11 +164,7 @@
     if (typeof document !== "undefined") {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
-    if (animationFrame !== null) {
-      cancelAnimationFrame(animationFrame);
-      animationFrame = null;
-    }
-    isAnimating = false;
+    stopAnimation();
   });
 </script>
 
@@ -219,7 +240,7 @@
 
         <!-- Outer Track / Bezel -->
         <div
-          class="absolute inset-0 rounded-full border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-xl shadow-[inset_0_0_50px_rgba(0,0,0,0.35),0_20px_50px_rgba(0,0,0,0.2)]"
+          class="absolute inset-0 rounded-full border border-[var(--glass-border)] bg-[var(--surface-bg)] np-surface shadow-[inset_0_0_50px_rgba(0,0,0,0.35),0_20px_50px_rgba(0,0,0,0.2)]"
         ></div>
 
         <!-- Degree Ticks (CSS rendering for precision) -->
@@ -274,7 +295,7 @@
             style="transform: rotate({qiblaData.degrees}deg);"
           >
             <div
-              class="absolute top-0 -translate-x-1/2 w-8 h-8 rounded-full bg-blue-500/20 border-2 border-blue-400 flex items-center justify-center backdrop-blur-sm -mt-4 shadow-lg"
+              class="absolute top-0 -translate-x-1/2 w-8 h-8 rounded-full bg-blue-500/20 border-2 border-blue-400 flex items-center justify-center -mt-4 shadow-lg"
             >
               <div class="w-2 h-2 bg-white rounded-full"></div>
             </div>
@@ -313,7 +334,7 @@
           class="absolute inset-0 m-auto w-16 h-16 rounded-full bg-slate-900 border border-[var(--glass-border)] shadow-[0_5px_15px_rgba(0,0,0,0.5)] z-40 flex items-center justify-center"
         >
           <div
-            class="w-4 h-4 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.8)]"
+            class="w-4 h-4 bg-blue-500 rounded-full"
           ></div>
         </div>
       </div>

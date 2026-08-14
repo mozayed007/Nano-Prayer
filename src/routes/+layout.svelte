@@ -2,7 +2,8 @@
   import "../app.css";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
-  import { currentPrayer, clockFormat, theme } from "$lib/stores";
+  import { currentPrayer, clockFormat, theme, visualMode } from "$lib/stores";
+  import type { VisualMode } from "$lib/types";
   import { fade } from "svelte/transition";
   import {
     invoke,
@@ -22,12 +23,30 @@
   let globalError = $state<string | null>(null);
   let isWindowVisible = $state(true);
 
+  function applyIdle(idle: boolean) {
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.idle = idle ? "true" : "false";
+  }
+
+  function applyVisualMode(mode: VisualMode) {
+    visualMode.set(mode);
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.visual = mode;
+  }
+
+  function resolveVisualMode(cfg: any): VisualMode {
+    const raw = cfg?.appearance?.visual_mode;
+    if (raw === "glass") return "glass";
+    return "performance";
+  }
+
   async function loadConfig() {
     try {
       const cfg = await invoke<any>("get_config");
       if (cfg?.appearance?.clock_format)
         clockFormat.set(cfg.appearance.clock_format);
       if (cfg?.appearance?.theme) theme.set(cfg.appearance.theme);
+      applyVisualMode(resolveVisualMode(cfg));
     } catch (e) {
       console.error("Failed to load config:", e);
     }
@@ -70,14 +89,22 @@
 
     let unlistenVisibility: (() => void) | undefined;
 
+    const handleDocumentVisibility = () => {
+      const pageVisible = document.visibilityState === "visible";
+      applyIdle(!pageVisible || !isWindowVisible);
+    };
+    document.addEventListener("visibilitychange", handleDocumentVisibility);
+
     if (isDesktop) {
       // Set up window visibility detection to pause expensive operations
       (async () => {
         const win = getCurrentWindow();
         const visible = await win.isVisible();
         isWindowVisible = visible;
+        applyIdle(!visible);
         unlistenVisibility = await win.onVisibilityChanged((event: { visible: boolean }) => {
           isWindowVisible = event.visible;
+          applyIdle(!event.visible || document.visibilityState !== "visible");
           if (event.visible) {
             // Window became visible - immediately refresh stale data
             updatePrayerTimes();
@@ -122,6 +149,7 @@
     return () => {
       window.removeEventListener("error", handleError);
       window.removeEventListener("unhandledrejection", handleRejection);
+      document.removeEventListener("visibilitychange", handleDocumentVisibility);
       clearInterval(interval);
       unlistenVisibility?.();
     };
@@ -163,6 +191,16 @@
       }
     }
   });
+
+  $effect(() => {
+    if (typeof document === "undefined") return;
+    const reduced =
+      window.matchMedia("(prefers-reduced-transparency: reduce)").matches ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.documentElement.dataset.visual = reduced
+      ? "performance"
+      : $visualMode;
+  });
 </script>
 
 {#if globalError}
@@ -198,16 +236,11 @@
           $currentPrayer,
         )} flex flex-col relative overflow-hidden {$theme}"
   >
-    <!-- Overlay for depth -->
-    <div
-      class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay"
-    ></div>
-
     <div
       class="w-full flex justify-center absolute top-2 md:top-4 left-0 z-50 px-2 sm:px-4 pointer-events-none"
     >
       <nav
-        class="app-nav pointer-events-auto backdrop-blur-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl px-2 py-2 flex justify-center items-center gap-1 shadow-[0_8px_32px_var(--glass-shadow)] max-w-full overflow-x-auto whitespace-nowrap"
+        class="app-nav np-surface pointer-events-auto bg-[var(--surface-bg)] border border-[var(--glass-border)] rounded-2xl px-2 py-2 flex justify-center items-center gap-1 shadow-[0_8px_32px_var(--glass-shadow)] max-w-full overflow-x-auto whitespace-nowrap"
       >
         <a
           href="/"

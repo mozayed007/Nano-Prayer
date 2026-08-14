@@ -8,6 +8,7 @@ use tokio::sync::Notify;
 
 mod audio;
 mod commands;
+mod gpu_idle;
 mod scheduler;
 mod webview2_check;
 
@@ -84,8 +85,9 @@ pub fn run() {
                         }
                         "show" => {
                             if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
+                                if let Err(e) = crate::gpu_idle::show_main_from_tray(&window) {
+                                    tracing::warn!("Failed to show main window: {e}");
+                                }
                             }
                         }
                         "mute" => {
@@ -143,7 +145,7 @@ pub fn run() {
                     || std::env::args().any(|arg| arg == "--hidden");
                 if launch_hidden {
                     if let Some(window) = app.get_webview_window("main") {
-                        if let Err(err) = window.hide() {
+                        if let Err(err) = crate::gpu_idle::hide_main_for_tray(&window) {
                             tracing::warn!("Failed to start minimized: {}", err);
                         } else {
                             tracing::info!("Started minimized to tray/background.");
@@ -194,7 +196,11 @@ pub fn run() {
 
                 if minimize_to_tray && has_tray {
                     api.prevent_close();
-                    if let Err(err) = window.hide() {
+                    let hide_result = app_handle
+                        .get_webview_window(window.label())
+                        .map(|main| crate::gpu_idle::hide_main_for_tray(&main))
+                        .unwrap_or_else(|| window.hide());
+                    if let Err(err) = hide_result {
                         tracing::error!("Failed to hide window to tray: {}", err);
                     } else {
                         tracing::info!("Window close intercepted; minimized to tray.");
@@ -227,6 +233,8 @@ pub fn run() {
             commands::set_reminders_muted,
             commands::update_reminder_settings,
             commands::desktop_check_update,
+            commands::hide_main_window,
+            commands::show_main_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

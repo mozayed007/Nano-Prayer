@@ -116,6 +116,15 @@ impl Default for NotificationSettings {
     }
 }
 
+/// Open-window compositor profile. Missing on old configs so they get Performance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum VisualMode {
+    #[default]
+    Performance,
+    Glass,
+}
+
 /// Appearance settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppearanceSettings {
@@ -123,7 +132,10 @@ pub struct AppearanceSettings {
     pub accent_color: String,
     pub clock_format: ClockFormat,
     pub show_arabic: bool,
+    #[serde(default)]
     pub animations_enabled: bool,
+    #[serde(default)]
+    pub visual_mode: VisualMode,
     pub font_scale: f32,
 }
 
@@ -134,7 +146,8 @@ impl Default for AppearanceSettings {
             accent_color: "#2196F3".to_string(),
             clock_format: ClockFormat::default(),
             show_arabic: true,
-            animations_enabled: true,
+            animations_enabled: false,
+            visual_mode: VisualMode::Performance,
             font_scale: 1.0,
         }
     }
